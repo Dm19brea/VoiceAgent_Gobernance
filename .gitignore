@@ -1,0 +1,35 @@
+# ---- Project guideline docs (context for the assistant, not product code) ----
+TFM - Plataforma de Gobernanza para Agentes de Voz/
+.atl/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-version
+
+# ---- Tooling caches ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+bandit-report.json
+
+# ---- Environment / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

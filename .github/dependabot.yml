@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Python dependencies managed by uv (reads uv.lock)
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+
+  # Base images referenced in the backend Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions used in the workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
