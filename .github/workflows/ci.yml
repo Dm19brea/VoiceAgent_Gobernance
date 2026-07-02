@@ -9,6 +9,22 @@ jobs:
   quality:
     name: Lint, type-check, tests
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+asyncpg://governance:governance@localhost:5432/governance
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: governance
+          POSTGRES_PASSWORD: governance
+          POSTGRES_DB: governance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
