@@ -12,11 +12,14 @@ ENV PYTHONPATH=/app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-# Copy application source
+# Copy application source and migration tooling
 COPY src ./src
+COPY alembic ./alembic
+COPY alembic.ini ./alembic.ini
 
 EXPOSE 8000
 
-# Railway injects a dynamic $PORT; fall back to 8000 for local Docker.
-# Shell form is required so ${PORT} is expanded at runtime.
-CMD uv run --no-dev uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Run DB migrations, then start the server. Railway injects a dynamic $PORT;
+# shell form is required so ${PORT} is expanded at runtime.
+CMD uv run --no-dev alembic upgrade head && \
+    uv run --no-dev uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}
