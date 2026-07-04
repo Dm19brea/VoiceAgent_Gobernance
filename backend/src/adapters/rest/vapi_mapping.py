@@ -1,24 +1,12 @@
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from src.application.commands import IngestEventCommand
 from src.domain.enums import EventType, Source
 
 
-@dataclass(frozen=True, slots=True)
-class MappedEvent:
-    """A Vapi webhook translated to the canonical governance vocabulary."""
-
-    call_id: str
-    assistant_id: str
-    event_type: EventType
-    source: Source
-    timestamp: datetime
-    payload: dict[str, Any]
-
-
-def map_vapi_event(webhook: dict[str, Any]) -> MappedEvent | None:
-    """Translate a Vapi server-message webhook to a canonical event.
+def map_vapi_event(webhook: dict[str, Any]) -> IngestEventCommand | None:
+    """Translate a Vapi server-message webhook to a canonical ingest command.
 
     Returns ``None`` when the Vapi type has no canonical mapping (it stays in
     ``raw_events`` but is not promoted to a domain Event) or when the payload
@@ -42,7 +30,7 @@ def map_vapi_event(webhook: dict[str, Any]) -> MappedEvent | None:
     assistant: dict[str, Any] = message.get("assistant") or {}
     assistant_id = call.get("assistantId") or assistant.get("id") or ""
 
-    return MappedEvent(
+    return IngestEventCommand(
         call_id=call_id,
         assistant_id=str(assistant_id),
         event_type=event_type,

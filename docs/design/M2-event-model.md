@@ -195,7 +195,7 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
 - [x] **T6** `GovernanceRepository` Protocol (D7). Provide an in-memory **fake** for use-case tests.
 
 ### M2.6 — `IngestEvent` use case (`application/use_cases/`)
-- [ ] **T7** `IngestEvent` with the fake repo. Tests: new `call.id` → Session + `session.started`
+- [x] **T7** `IngestEvent` with the fake repo. Tests: new `call.id` → Session + `session.started`
   (S2); second webhook → seq 2 (S3); `end-of-call-report` → `ended` (S4); event on ended → rejected
   (S5); unknown `assistant_id` → auto-provisioned Agent (D6). *No DB.*
 
