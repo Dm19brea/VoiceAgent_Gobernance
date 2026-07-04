@@ -200,10 +200,10 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
   (S5); unknown `assistant_id` → auto-provisioned Agent (D6). *No DB.*
 
 ### M2.7 — Persistence & wiring (`infrastructure/`, `adapters/rest/`)
-- [ ] **T8** SQLAlchemy models `agents`, `sessions`, `events` (D9).
-- [ ] **T9** Alembic autogenerate migration; apply to local Postgres.
-- [ ] **T10** `SqlAlchemyGovernanceRepository` implementing the port. Integration test (real DB).
-- [ ] **T11** Wire the Vapi webhook adapter: map → `IngestEvent`; keep `raw_events` landing.
+- [x] **T8** SQLAlchemy models `agents`, `sessions`, `events` (D9).
+- [x] **T9** Alembic autogenerate migration; apply to local Postgres.
+- [x] **T10** `SqlAlchemyGovernanceRepository` implementing the port. Integration test (real DB).
+- [x] **T11** Wire the Vapi webhook adapter: map → `IngestEvent`; keep `raw_events` landing.
   Integration test: Vapi-shaped payload → Session + Events persisted (R9).
 
 *DoD: a Vapi webhook produces a linked Session/Event trace in Postgres; CI green.*
