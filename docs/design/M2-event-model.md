@@ -192,7 +192,7 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
   timestamp)`. Tests: one case per observed Vapi type + unmapped → `None` (S6, S7, D3).
 
 ### M2.5 — Repository port (`application/ports/`)
-- [ ] **T6** `GovernanceRepository` Protocol (D7). Provide an in-memory **fake** for use-case tests.
+- [x] **T6** `GovernanceRepository` Protocol (D7). Provide an in-memory **fake** for use-case tests.
 
 ### M2.6 — `IngestEvent` use case (`application/use_cases/`)
 - [ ] **T7** `IngestEvent` with the fake repo. Tests: new `call.id` → Session + `session.started`
