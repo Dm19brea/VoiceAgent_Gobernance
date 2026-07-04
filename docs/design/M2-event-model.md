@@ -188,7 +188,7 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
 *DoD: pure domain, 100% covered, no infra imports.*
 
 ### M2.3 — Vapi → canonical mapping (`adapters/rest/`)
-- [ ] **T5** `map_vapi_event(payload)` → `(call_id, assistant_id, canonical_type|None, source,
+- [x] **T5** `map_vapi_event(payload)` → `(call_id, assistant_id, canonical_type|None, source,
   timestamp)`. Tests: one case per observed Vapi type + unmapped → `None` (S6, S7, D3).
 
 ### M2.5 — Repository port (`application/ports/`)
