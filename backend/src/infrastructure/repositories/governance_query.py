@@ -76,6 +76,20 @@ class SqlAlchemyGovernanceQuery:
         rows = (await self._session.execute(stmt)).all()
         return [_to_summary(session_row, report_row) for session_row, report_row in rows]
 
+    async def list_sessions(self, *, limit: int = 50, offset: int = 0) -> list[SessionSummary]:
+        stmt = (
+            select(SessionModel, EvaluationReportModel)
+            .outerjoin(
+                EvaluationReportModel,
+                EvaluationReportModel.session_id == SessionModel.session_id,
+            )
+            .order_by(SessionModel.started_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return [_to_summary(session_row, report_row) for session_row, report_row in rows]
+
 
 def _to_summary(
     session_row: SessionModel, report_row: EvaluationReportModel | None

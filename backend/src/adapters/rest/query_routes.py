@@ -30,6 +30,18 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.get(
+    "/sessions",
+    response_model=list[SessionSummaryOut],
+    summary="List recent sessions",
+)
+async def list_sessions(
+    db: SessionDep, limit: int = 50, offset: int = 0
+) -> list[SessionSummaryOut]:
+    summaries = await SqlAlchemyGovernanceQuery(db).list_sessions(limit=limit, offset=offset)
+    return [_to_summary_out(summary) for summary in summaries]
+
+
+@router.get(
     "/sessions/{session_id}",
     response_model=SessionOut,
     summary="Get session state",

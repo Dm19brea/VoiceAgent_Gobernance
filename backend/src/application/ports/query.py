@@ -46,6 +46,8 @@ class GovernanceQuery(Protocol):
 
     async def get_report(self, session_id: str) -> EvaluationReport | None: ...
 
+    async def list_sessions(self, *, limit: int = 50, offset: int = 0) -> list[SessionSummary]: ...
+
     async def list_agent_sessions(
         self,
         agent_id: UUID,
