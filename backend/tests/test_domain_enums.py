@@ -1,4 +1,11 @@
-from src.domain.enums import AgentStatus, EventType, SessionStatus, Source
+from src.domain.enums import (
+    AgentStatus,
+    Dimension,
+    EventType,
+    EvidenceType,
+    SessionStatus,
+    Source,
+)
 
 
 def test_event_type_values() -> None:
@@ -23,3 +30,16 @@ def test_session_status_values() -> None:
 def test_agent_status_values() -> None:
     assert AgentStatus.ACTIVE.value == "active"
     assert AgentStatus.UNREGISTERED.value == "unregistered"
+
+
+def test_evidence_type_values() -> None:
+    assert EvidenceType.DIRECT.value == "direct"
+    assert EvidenceType.INFERRED.value == "inferred"
+    assert EvidenceType.COMPOSITE.value == "composite"
+
+
+def test_dimension_values() -> None:
+    assert Dimension.CONVERSATIONAL.value == "conversational"
+    assert Dimension.OPERATIONAL.value == "operational"
+    assert Dimension.TECHNICAL.value == "technical"
+    assert Dimension.RISK.value == "risk"

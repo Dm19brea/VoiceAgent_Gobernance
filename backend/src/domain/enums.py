@@ -29,3 +29,16 @@ class AgentStatus(StrEnum):
     INACTIVE = "inactive"
     UNDER_VALIDATION = "under_validation"
     UNREGISTERED = "unregistered"
+
+
+class EvidenceType(StrEnum):
+    DIRECT = "direct"
+    INFERRED = "inferred"
+    COMPOSITE = "composite"
+
+
+class Dimension(StrEnum):
+    CONVERSATIONAL = "conversational"
+    OPERATIONAL = "operational"
+    TECHNICAL = "technical"
+    RISK = "risk"
