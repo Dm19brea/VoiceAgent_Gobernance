@@ -22,8 +22,8 @@ def _metric() -> Metric:
 
 
 def test_evaluation_result_has_passed_and_failed() -> None:
-    assert EvaluationResult.PASSED == "passed"
-    assert EvaluationResult.FAILED == "failed"
+    assert EvaluationResult.PASSED.value == "passed"
+    assert EvaluationResult.FAILED.value == "failed"
 
 
 def test_report_holds_scores_result_flags_and_metrics() -> None:

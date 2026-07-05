@@ -14,6 +14,7 @@ from src.infrastructure.config import settings
 from src.infrastructure.db.base import Base
 from src.infrastructure.db.models import (
     AgentModel,
+    EvaluationReportModel,
     EventModel,
     EvidenceModel,
     RawEvent,
@@ -24,7 +25,8 @@ from src.main import app
 
 
 async def _clean(conn: AsyncConnection) -> None:
-    # FK order: evidences/events -> sessions -> agents; raw_events is independent.
+    # FK order: reports/evidences/events -> sessions -> agents; raw_events is independent.
+    await conn.execute(delete(EvaluationReportModel))
     await conn.execute(delete(EvidenceModel))
     await conn.execute(delete(EventModel))
     await conn.execute(delete(SessionModel))

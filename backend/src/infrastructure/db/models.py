@@ -84,3 +84,28 @@ class EvidenceModel(Base):
     dimension: Mapped[str] = mapped_column(nullable=False)
     source_events: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class EvaluationReportModel(Base):
+    """Persistence model for a session's evaluation report (M4).
+
+    One report per session (``session_id`` unique): re-evaluating replaces it, so
+    scoring stays idempotent. Per-dimension scores are nullable (a dimension with no
+    metrics is excluded); flags and the metrics snapshot are stored as JSONB.
+    """
+
+    __tablename__ = "evaluation_reports"
+
+    report_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.session_id"), unique=True, index=True, nullable=False
+    )
+    score_global: Mapped[float] = mapped_column(nullable=False)
+    result: Mapped[str] = mapped_column(nullable=False)
+    score_conversational: Mapped[float | None] = mapped_column(nullable=True)
+    score_operational: Mapped[float | None] = mapped_column(nullable=True)
+    score_technical: Mapped[float | None] = mapped_column(nullable=True)
+    score_risk: Mapped[float | None] = mapped_column(nullable=True)
+    blocking_flags: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    metrics: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
