@@ -176,9 +176,9 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
   persist. Integration test (Celery eager, real DB) (S6).
 
 ### M3.5 — Normalisation + trigger (`adapters/rest/`)
-- [ ] **T9** Normalise `end-of-call-report` → `report` sub-dict in `vapi_mapping`. Tests per field
+- [x] **T9** Normalise `end-of-call-report` → `report` sub-dict in `vapi_mapping`. Tests per field
   + graceful (D4).
-- [ ] **T10** Webhook enqueues `build_session_evidences` on `session.ended`; returns immediately.
+- [x] **T10** Webhook enqueues `build_session_evidences` on `session.ended`; returns immediately.
   Integration test (S7).
 
 *DoD: a closed session's events are turned into persisted evidences asynchronously; CI green.*

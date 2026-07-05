@@ -30,14 +30,27 @@ def map_vapi_event(webhook: dict[str, Any]) -> IngestEventCommand | None:
     assistant: dict[str, Any] = message.get("assistant") or {}
     assistant_id = call.get("assistantId") or assistant.get("id") or ""
 
+    payload: dict[str, Any] = dict(message)
+    if vapi_type == "end-of-call-report":
+        payload["report"] = _normalise_report(message)
+
     return IngestEventCommand(
         call_id=call_id,
         assistant_id=str(assistant_id),
         event_type=event_type,
         source=source,
         timestamp=_timestamp(message),
-        payload=message,
+        payload=payload,
     )
+
+
+def _normalise_report(message: dict[str, Any]) -> dict[str, Any]:
+    """Extract the governance-relevant fields from a Vapi end-of-call-report."""
+    return {
+        "ended_reason": message.get("endedReason"),
+        "duration_seconds": message.get("durationSeconds"),
+        "summary": message.get("summary"),
+    }
 
 
 def _resolve(vapi_type: str, message: dict[str, Any]) -> tuple[EventType, Source] | None:

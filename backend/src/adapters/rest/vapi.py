@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.rest.vapi_mapping import map_vapi_event
 from src.application.use_cases.ingest_event import IngestEvent
+from src.domain.enums import EventType
+from src.infrastructure.celery.tasks import build_session_evidences
 from src.infrastructure.db.models import RawEvent
 from src.infrastructure.db.session import get_session
 from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
@@ -54,6 +56,10 @@ async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, s
     except Exception:
         logger.exception("Vapi webhook persistence failed: type={}", event_type)
         raise
+
+    # Session closed: build its evidences asynchronously (does not block the response).
+    if command is not None and command.event_type is EventType.SESSION_ENDED:
+        build_session_evidences.delay(command.call_id)
 
     logger.info("Vapi webhook persisted: type={}", event_type)
     return {"status": "received"}
