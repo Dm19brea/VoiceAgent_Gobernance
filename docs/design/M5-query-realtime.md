@@ -143,7 +143,7 @@ Verification gate per group: `pytest` + `ruff check` + `ruff format --check` + `
   join + pagination). Integration tests (S1, S6).
 
 ### M5.2 — Session detail + agent listing endpoints
-- [ ] **T2** `SessionOut`/`SessionSummaryOut` schemas + routes `GET /sessions/{id}` and
+- [x] **T2** `SessionOut`/`SessionSummaryOut` schemas + routes `GET /sessions/{id}` and
   `GET /agents/{id}/sessions`. Client tests (S2, S6).
 
 ### M5.3 — Report, evidences, events endpoints
