@@ -150,7 +150,7 @@ smoke test. Each group ships as one commit. Frontend gate per group: lint + type
 - [x] **T5** `useActiveSessions` (WebSocket) + `ActiveSessionsPanel` (S8).
 
 ### M6.6 — Logging + CI
-- [ ] **T6** Pino logger + key event logging (R8); add the `frontend` CI job (R9).
+- [x] **T6** Pino logger + key event logging (R8); add the `frontend` CI job (R9).
 
 *DoD: an operator navigates from the sessions list to a session's evaluation report and sees the
 scores rendered (text + chart); live active sessions are visible; frontend CI green.*
