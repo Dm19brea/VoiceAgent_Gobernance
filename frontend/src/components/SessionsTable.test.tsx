@@ -29,4 +29,13 @@ describe("SessionsTable", () => {
 
     expect(screen.getByText(/no sessions/i)).toBeInTheDocument();
   });
+
+  it("links each session to its detail page", () => {
+    render(<SessionsTable sessions={rows} />);
+
+    expect(screen.getByRole("link", { name: "call-1" })).toHaveAttribute(
+      "href",
+      "/sessions/call-1",
+    );
+  });
 });

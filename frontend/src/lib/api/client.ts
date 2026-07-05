@@ -1,5 +1,5 @@
 import { apiBaseUrl } from "./config";
-import type { SessionSummary } from "./types";
+import type { Report, SessionSummary } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -21,4 +21,8 @@ async function getJson<T>(path: string): Promise<T> {
 
 export function getSessions(): Promise<SessionSummary[]> {
   return getJson<SessionSummary[]>("/sessions");
+}
+
+export function getReport(sessionId: string): Promise<Report> {
+  return getJson<Report>(`/sessions/${sessionId}/report`);
 }

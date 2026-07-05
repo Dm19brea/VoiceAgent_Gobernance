@@ -140,7 +140,7 @@ smoke test. Each group ships as one commit. Frontend gate per group: lint + type
   error states (S3, S4).
 
 ### M6.3 — Report view
-- [ ] **T3** `useReport`; `/sessions/[id]` page with `ReportScores`; list→detail navigation; 404
+- [x] **T3** `useReport`; `/sessions/[id]` page with `ReportScores`; list→detail navigation; 404
   "not evaluated" state (S5, S6).
 
 ### M6.4 — Dimension chart

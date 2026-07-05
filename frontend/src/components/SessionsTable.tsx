@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { SessionSummary } from "@/lib/api/types";
 
 const HEADERS = ["Session", "Status", "Result", "Score", "Started"];
@@ -24,7 +26,14 @@ export function SessionsTable({ sessions }: Readonly<{ sessions: SessionSummary[
             key={session.session_id}
             className="border-b border-neutral-100 dark:border-neutral-900"
           >
-            <td className="py-2 pr-4 font-mono text-xs">{session.session_id}</td>
+            <td className="py-2 pr-4 font-mono text-xs">
+              <Link
+                href={`/sessions/${session.session_id}`}
+                className="text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {session.session_id}
+              </Link>
+            </td>
             <td className="py-2 pr-4">{session.status}</td>
             <td className="py-2 pr-4">{session.result}</td>
             <td className="py-2 pr-4">{session.score_global ?? "—"}</td>
