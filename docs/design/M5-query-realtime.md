@@ -160,7 +160,7 @@ Verification gate per group: `pytest` + `ruff check` + `ruff format --check` + `
 - [x] **T5** `/ws/active-sessions` adapter reading the store. Connect/receive test (S10).
 
 ### M5.6 — OpenAPI verification
-- [ ] **T6** Route tags/summaries + test asserting the read paths in `/openapi.json` (S11).
+- [x] **T6** Route tags/summaries + test asserting the read paths in `/openapi.json` (S11).
 
 *DoD: the doc 4.4 read contract is served and documented; active sessions are observable live over
 WebSocket; CI green (pytest + ruff + mypy).*

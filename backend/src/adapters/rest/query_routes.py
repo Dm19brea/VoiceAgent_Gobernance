@@ -29,7 +29,12 @@ router = APIRouter(tags=["query"])
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-@router.get("/sessions/{session_id}", response_model=SessionOut, summary="Get session state")
+@router.get(
+    "/sessions/{session_id}",
+    response_model=SessionOut,
+    summary="Get session state",
+    responses={404: {"description": "Session not found"}},
+)
 async def get_session_detail(session_id: str, db: SessionDep) -> SessionOut:
     session = await SqlAlchemyGovernanceQuery(db).get_session(session_id)
     if session is None:
@@ -59,6 +64,7 @@ async def list_agent_sessions(
     "/sessions/{session_id}/report",
     response_model=ReportOut,
     summary="Get a session's evaluation report",
+    responses={404: {"description": "Report not found (session not evaluated yet)"}},
 )
 async def get_session_report(session_id: str, db: SessionDep) -> ReportOut:
     report = await SqlAlchemyGovernanceQuery(db).get_report(session_id)
