@@ -6,7 +6,9 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://governance:governance@localhost:5432/governance"
     redis_url: str = "redis://localhost:6379/0"
-    cors_origins: str = "http://localhost:3000,https://optimistic-stillness-production-cf18.up.railway.app"
+    cors_origins: str = (
+        "http://localhost:3000,https://optimistic-stillness-production-cf18.up.railway.app"
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:
