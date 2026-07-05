@@ -30,3 +30,10 @@ export interface Report {
   blocking_flags: BlockingFlag[];
   generated_at: string;
 }
+
+export interface ActiveSession {
+  session_id: string;
+  agent_id: string;
+  status: string;
+  started_at: string;
+}

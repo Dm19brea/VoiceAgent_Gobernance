@@ -147,7 +147,7 @@ smoke test. Each group ships as one commit. Frontend gate per group: lint + type
 - [x] **T4** `DimensionChart` (Recharts) on the report view (S7).
 
 ### M6.5 — Live supervision
-- [ ] **T5** `useActiveSessions` (WebSocket) + `ActiveSessionsPanel` (S8).
+- [x] **T5** `useActiveSessions` (WebSocket) + `ActiveSessionsPanel` (S8).
 
 ### M6.6 — Logging + CI
 - [ ] **T6** Pino logger + key event logging (R8); add the `frontend` CI job (R9).
