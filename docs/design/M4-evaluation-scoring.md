@@ -191,7 +191,7 @@ Test-first (RED → GREEN → REFACTOR). Grouped by area; each group ships as on
 - [x] **T6** `Evaluator` Protocol (`application/ports/evaluation.py`).
 - [x] **T7** `EvaluationReportModel` + Alembic migration.
 - [x] **T8** Repository port `add_report` / `get_report_by_session`; fake + SQLAlchemy impl.
-- [ ] **T9** Celery task: after evidences, run the evaluator and persist the report. Integration
+- [x] **T9** Celery task: after evidences, run the evaluator and persist the report. Integration
   test (eager, real DB).
 
 *DoD: a closed session's evidences yield a persisted EvaluationReport with a deterministic score;
