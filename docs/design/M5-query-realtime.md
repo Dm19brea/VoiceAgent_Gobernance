@@ -147,7 +147,7 @@ Verification gate per group: `pytest` + `ruff check` + `ruff format --check` + `
   `GET /agents/{id}/sessions`. Client tests (S2, S6).
 
 ### M5.3 — Report, evidences, events endpoints
-- [ ] **T3** `ReportOut` (nested `scores`)/`EvidenceOut`/`EventOut` + routes
+- [x] **T3** `ReportOut` (nested `scores`)/`EvidenceOut`/`EventOut` + routes
   `GET /sessions/{id}/report` (404 if none), `/evidences`, `/events` (filters). Client tests
   (S3, S4, S5).
 
