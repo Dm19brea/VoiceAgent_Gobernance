@@ -157,7 +157,7 @@ Verification gate per group: `pytest` + `ruff check` + `ruff format --check` + `
   Redis failure is swallowed (S9).
 
 ### M5.5 — WebSocket supervision
-- [ ] **T5** `/ws/active-sessions` adapter reading the store. Connect/receive test (S10).
+- [x] **T5** `/ws/active-sessions` adapter reading the store. Connect/receive test (S10).
 
 ### M5.6 — OpenAPI verification
 - [ ] **T6** Route tags/summaries + test asserting the read paths in `/openapi.json` (S11).
