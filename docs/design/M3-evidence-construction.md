@@ -160,9 +160,9 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
   `dimension` (S1).
 
 ### M3.2 — Construction service (`domain/`, pure, no Redis)
-- [ ] **T3** `build_evidences(session)` — inferred evidences: total/agent/user turns + duration
+- [x] **T3** `build_evidences(session)` — inferred evidences: total/agent/user turns + duration
   (S2, S4). Tests with an in-memory Session.
-- [ ] **T4** `build_evidences` — direct evidences: `session_completed`, `ended_reason` (from
+- [x] **T4** `build_evidences` — direct evidences: `session_completed`, `ended_reason` (from
   normalised `report`); graceful when absent (S3, S8); determinism (S5).
 
 ### M3.3 — Celery + Redis wiring (`infrastructure/celery/`)
