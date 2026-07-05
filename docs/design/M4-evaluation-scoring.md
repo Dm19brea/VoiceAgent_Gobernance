@@ -178,7 +178,7 @@ Test-first (RED → GREEN → REFACTOR). Grouped by area; each group ships as on
   (weighted mean with dimension weights, empty dimensions skipped). Tests (S2, S3).
 
 ### M4.3 — Metric catalogue (`domain/scoring/`)
-- [ ] **T3** `build_metrics(session, evidences) -> list[Metric]` — `engagement`, `completion`,
+- [x] **T3** `build_metrics(session, evidences) -> list[Metric]` — `engagement`, `completion`,
   `duration`, `clean_ending`; metrics with no source evidence are omitted (R10).
 
 ### M4.4–M4.5 — Report + evaluator (`domain/`)
