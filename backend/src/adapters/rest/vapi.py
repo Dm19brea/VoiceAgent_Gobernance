@@ -11,6 +11,10 @@ from src.domain.enums import EventType
 from src.infrastructure.celery.tasks import build_session_evidences
 from src.infrastructure.db.models import RawEvent
 from src.infrastructure.db.session import get_session
+from src.infrastructure.redis.active_sessions import (
+    get_active_session_store,
+    update_active_state,
+)
 from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
 
 router = APIRouter()
@@ -64,6 +68,18 @@ async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, s
             build_session_evidences.delay(command.call_id)
         except Exception:
             logger.exception("Failed to enqueue evidence build: session={}", command.call_id)
+
+    # Reflect the session in the live active-session store. Best-effort: a Redis
+    # failure must not break ingestion (the source of truth stays in Postgres).
+    if command is not None:
+        try:
+            await update_active_state(
+                get_active_session_store(),
+                SqlAlchemyGovernanceRepository(session),
+                command,
+            )
+        except Exception:
+            logger.exception("Failed to update active-session state: session={}", command.call_id)
 
     logger.info("Vapi webhook persisted: type={}", event_type)
     return {"status": "received"}

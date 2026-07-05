@@ -152,7 +152,7 @@ Verification gate per group: `pytest` + `ruff check` + `ruff format --check` + `
   (S3, S4, S5).
 
 ### M5.4 — Redis active-session state
-- [ ] **T4** `ActiveSessionStore` port + `ActiveSessionSnapshot` DTO + `RedisActiveSessionStore`;
+- [x] **T4** `ActiveSessionStore` port + `ActiveSessionSnapshot` DTO + `RedisActiveSessionStore`;
   wire best-effort into ingestion. Tests: store round-trip (S7), ingestion marks state (S8),
   Redis failure is swallowed (S9).
 
