@@ -33,7 +33,6 @@ def global_score(dimension_scores: Mapping[Dimension, float]) -> float:
     """
     total_weight = sum(DIMENSION_WEIGHTS[dimension] for dimension in dimension_scores)
     weighted = sum(
-        score * DIMENSION_WEIGHTS[dimension]
-        for dimension, score in dimension_scores.items()
+        score * DIMENSION_WEIGHTS[dimension] for dimension, score in dimension_scores.items()
     )
     return weighted / total_weight
