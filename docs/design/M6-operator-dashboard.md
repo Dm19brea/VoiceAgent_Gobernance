@@ -136,7 +136,7 @@ smoke test. Each group ships as one commit. Frontend gate per group: lint + type
   layout + nav, smoke test (S1). Backend: `GET /sessions` global list + `CORSMiddleware` (S2).
 
 ### M6.2 — Sessions list
-- [ ] **T2** API client + types (S9); `useSessions`; sessions-list page with table, loading/empty/
+- [x] **T2** API client + types (S9); `useSessions`; sessions-list page with table, loading/empty/
   error states (S3, S4).
 
 ### M6.3 — Report view
