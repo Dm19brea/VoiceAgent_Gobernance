@@ -58,8 +58,12 @@ async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, s
         raise
 
     # Session closed: build its evidences asynchronously (does not block the response).
+    # A broker failure must not break ingestion, so the enqueue is best-effort.
     if command is not None and command.event_type is EventType.SESSION_ENDED:
-        build_session_evidences.delay(command.call_id)
+        try:
+            build_session_evidences.delay(command.call_id)
+        except Exception:
+            logger.exception("Failed to enqueue evidence build: session={}", command.call_id)
 
     logger.info("Vapi webhook persisted: type={}", event_type)
     return {"status": "received"}

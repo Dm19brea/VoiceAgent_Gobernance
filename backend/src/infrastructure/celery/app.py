@@ -6,6 +6,7 @@ celery_app = Celery(
     "governance",
     broker=settings.redis_url,
     backend=settings.redis_url,
+    include=["src.infrastructure.celery.tasks"],
 )
 
 
