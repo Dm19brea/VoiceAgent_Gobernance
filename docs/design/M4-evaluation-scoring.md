@@ -188,7 +188,7 @@ Test-first (RED → GREEN → REFACTOR). Grouped by area; each group ships as on
   metrics → dimension scores → global → flags → result. Tests (S4, S5, S6, S7, S8).
 
 ### M4.6 — Port, persistence, trigger
-- [ ] **T6** `Evaluator` Protocol (`application/ports/evaluation.py`).
+- [x] **T6** `Evaluator` Protocol (`application/ports/evaluation.py`).
 - [ ] **T7** `EvaluationReportModel` + Alembic migration.
 - [ ] **T8** Repository port `add_report` / `get_report_by_session`; fake + SQLAlchemy impl.
 - [ ] **T9** Celery task: after evidences, run the evaluator and persist the report. Integration
