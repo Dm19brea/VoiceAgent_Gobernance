@@ -42,3 +42,8 @@ class Dimension(StrEnum):
     OPERATIONAL = "operational"
     TECHNICAL = "technical"
     RISK = "risk"
+
+
+class EvaluationResult(StrEnum):
+    PASSED = "passed"
+    FAILED = "failed"

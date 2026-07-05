@@ -182,9 +182,9 @@ Test-first (RED → GREEN → REFACTOR). Grouped by area; each group ships as on
   `duration`, `clean_ending`; metrics with no source evidence are omitted (R10).
 
 ### M4.4–M4.5 — Report + evaluator (`domain/`)
-- [ ] **T4** `EvaluationResult` enum, `EvaluationReport` frozen entity, blocking-flag detection
+- [x] **T4** `EvaluationResult` enum, `EvaluationReport` frozen entity, blocking-flag detection
   (`session_not_completed`).
-- [ ] **T5** `DeterministicEvaluator.evaluate(session, evidences) -> EvaluationReport` tying
+- [x] **T5** `DeterministicEvaluator.evaluate(session, evidences) -> EvaluationReport` tying
   metrics → dimension scores → global → flags → result. Tests (S4, S5, S6, S7, S8).
 
 ### M4.6 — Port, persistence, trigger
