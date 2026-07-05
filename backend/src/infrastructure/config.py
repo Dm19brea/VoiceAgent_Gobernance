@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://governance:governance@localhost:5432/governance"
+    redis_url: str = "redis://localhost:6379/0"
 
     @property
     def async_database_url(self) -> str:

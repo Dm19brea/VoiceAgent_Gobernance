@@ -166,7 +166,7 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
   normalised `report`); graceful when absent (S3, S8); determinism (S5).
 
 ### M3.3 — Celery + Redis wiring (`infrastructure/celery/`)
-- [ ] **T5** Celery app (broker/backend = `REDIS_URL`), `task_always_eager` in tests, trivial task
+- [x] **T5** Celery app (broker/backend = `REDIS_URL`), `task_always_eager` in tests, trivial task
   to prove the wiring runs.
 
 ### M3.4 — Persistence + real task

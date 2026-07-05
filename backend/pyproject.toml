@@ -6,9 +6,11 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.18.5",
     "asyncpg>=0.31.0",
+    "celery>=5.6.3",
     "fastapi>=0.115",
     "loguru>=0.7.3",
     "pydantic-settings>=2.14.2",
+    "redis>=8.0.1",
     "sqlalchemy[asyncio]>=2.0.51",
     "uvicorn[standard]>=0.49.0",
 ]
@@ -42,3 +44,12 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+# Celery ships no type stubs; relax only where its untyped decorators are used.
+[[tool.mypy.overrides]]
+module = ["celery.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["src.infrastructure.celery.*"]
+disallow_untyped_decorators = false
