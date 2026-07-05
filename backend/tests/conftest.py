@@ -12,13 +12,20 @@ from sqlalchemy.ext.asyncio import (
 
 from src.infrastructure.config import settings
 from src.infrastructure.db.base import Base
-from src.infrastructure.db.models import AgentModel, EventModel, RawEvent, SessionModel
+from src.infrastructure.db.models import (
+    AgentModel,
+    EventModel,
+    EvidenceModel,
+    RawEvent,
+    SessionModel,
+)
 from src.infrastructure.db.session import get_session
 from src.main import app
 
 
 async def _clean(conn: AsyncConnection) -> None:
-    # FK order: events -> sessions -> agents; raw_events is independent.
+    # FK order: evidences/events -> sessions -> agents; raw_events is independent.
+    await conn.execute(delete(EvidenceModel))
     await conn.execute(delete(EventModel))
     await conn.execute(delete(SessionModel))
     await conn.execute(delete(AgentModel))

@@ -1,14 +1,16 @@
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.agent import Agent
-from src.domain.enums import AgentStatus, EventType, SessionStatus, Source
+from src.domain.enums import AgentStatus, Dimension, EventType, EvidenceType, SessionStatus, Source
 from src.domain.event import Event
+from src.domain.evidence import Evidence
 from src.domain.session import Session
-from src.infrastructure.db.models import AgentModel, EventModel, SessionModel
+from src.infrastructure.db.models import AgentModel, EventModel, EvidenceModel, SessionModel
 
 
 class SqlAlchemyGovernanceRepository:
@@ -51,6 +53,19 @@ class SqlAlchemyGovernanceRepository:
                 .on_conflict_do_nothing(index_elements=["event_id"])
             )
             await self._session.execute(stmt)
+
+    async def add_evidences(self, evidences: list[Evidence]) -> None:
+        for evidence in evidences:
+            self._session.add(_to_evidence_model(evidence))
+        await self._session.flush()
+
+    async def get_evidences_by_session(self, session_id: str) -> list[Evidence]:
+        rows = (
+            await self._session.scalars(
+                select(EvidenceModel).where(EvidenceModel.session_id == session_id)
+            )
+        ).all()
+        return [_to_evidence(row) for row in rows]
 
 
 def _to_agent(row: AgentModel) -> Agent:
@@ -118,3 +133,31 @@ def _event_values(event: Event) -> dict[str, Any]:
         "timestamp": event.timestamp,
         "payload": event.payload,
     }
+
+
+def _to_evidence_model(evidence: Evidence) -> EvidenceModel:
+    return EvidenceModel(
+        evidence_id=evidence.evidence_id,
+        session_id=evidence.session_id,
+        evidence_type=evidence.evidence_type.value,
+        criterion=evidence.criterion,
+        conclusion=evidence.conclusion,
+        value=evidence.value,
+        dimension=evidence.dimension.value,
+        source_events=[str(event_id) for event_id in evidence.source_events],
+        generated_at=evidence.generated_at,
+    )
+
+
+def _to_evidence(row: EvidenceModel) -> Evidence:
+    return Evidence(
+        session_id=row.session_id,
+        evidence_type=EvidenceType(row.evidence_type),
+        criterion=row.criterion,
+        conclusion=row.conclusion,
+        dimension=Dimension(row.dimension),
+        source_events=[UUID(event_id) for event_id in row.source_events],
+        value=row.value,
+        evidence_id=row.evidence_id,
+        generated_at=row.generated_at,
+    )

@@ -170,9 +170,9 @@ Test-first (RED → GREEN → REFACTOR). Grouped by subphase; each group ships a
   to prove the wiring runs.
 
 ### M3.4 — Persistence + real task
-- [ ] **T6** `EvidenceModel` + Alembic migration (apply to local Postgres).
-- [ ] **T7** Port extension `add_evidences` / `get_evidences_by_session`; fake + SQLAlchemy impl.
-- [ ] **T8** Task `build_session_evidences(session_id)`: load session → `build_evidences` →
+- [x] **T6** `EvidenceModel` + Alembic migration (apply to local Postgres).
+- [x] **T7** Port extension `add_evidences` / `get_evidences_by_session`; fake + SQLAlchemy impl.
+- [x] **T8** Task `build_session_evidences(session_id)`: load session → `build_evidences` →
   persist. Integration test (Celery eager, real DB) (S6).
 
 ### M3.5 — Normalisation + trigger (`adapters/rest/`)

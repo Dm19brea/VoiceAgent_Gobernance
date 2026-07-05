@@ -66,3 +66,21 @@ class EventModel(Base):
     sequence_number: Mapped[int] = mapped_column(nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+
+
+class EvidenceModel(Base):
+    """Persistence model for an evidence built from a session's trace (M3)."""
+
+    __tablename__ = "evidences"
+
+    evidence_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.session_id"), index=True, nullable=False
+    )
+    evidence_type: Mapped[str] = mapped_column(nullable=False)
+    criterion: Mapped[str] = mapped_column(nullable=False)
+    conclusion: Mapped[str] = mapped_column(nullable=False)
+    value: Mapped[float | None] = mapped_column(nullable=True)
+    dimension: Mapped[str] = mapped_column(nullable=False)
+    source_events: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

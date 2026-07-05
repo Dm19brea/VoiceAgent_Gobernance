@@ -1,6 +1,7 @@
 from typing import Protocol
 
 from src.domain.agent import Agent
+from src.domain.evidence import Evidence
 from src.domain.session import Session
 
 
@@ -19,3 +20,7 @@ class GovernanceRepository(Protocol):
     async def get_session(self, session_id: str) -> Session | None: ...
 
     async def save_session(self, session: Session) -> None: ...
+
+    async def add_evidences(self, evidences: list[Evidence]) -> None: ...
+
+    async def get_evidences_by_session(self, session_id: str) -> list[Evidence]: ...
