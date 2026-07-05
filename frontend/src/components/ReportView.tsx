@@ -3,6 +3,7 @@
 import { ApiError } from "@/lib/api/client";
 import { useReport } from "@/lib/queries/useReport";
 
+import { DimensionChart } from "./DimensionChart";
 import { ReportScores } from "./ReportScores";
 
 export function ReportView({ sessionId }: Readonly<{ sessionId: string }>) {
@@ -27,5 +28,10 @@ export function ReportView({ sessionId }: Readonly<{ sessionId: string }>) {
     );
   }
 
-  return <ReportScores report={data} />;
+  return (
+    <div className="space-y-8">
+      <ReportScores report={data} />
+      <DimensionChart scores={data.scores} />
+    </div>
+  );
 }

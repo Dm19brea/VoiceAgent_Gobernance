@@ -144,7 +144,7 @@ smoke test. Each group ships as one commit. Frontend gate per group: lint + type
   "not evaluated" state (S5, S6).
 
 ### M6.4 — Dimension chart
-- [ ] **T4** `DimensionChart` (Recharts) on the report view (S7).
+- [x] **T4** `DimensionChart` (Recharts) on the report view (S7).
 
 ### M6.5 — Live supervision
 - [ ] **T5** `useActiveSessions` (WebSocket) + `ActiveSessionsPanel` (S8).
