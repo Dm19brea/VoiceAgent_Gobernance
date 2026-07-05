@@ -1,16 +1,33 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.agent import Agent
-from src.domain.enums import AgentStatus, Dimension, EventType, EvidenceType, SessionStatus, Source
+from src.domain.enums import (
+    AgentStatus,
+    Dimension,
+    EvaluationResult,
+    EventType,
+    EvidenceType,
+    SessionStatus,
+    Source,
+)
+from src.domain.evaluation_report import EvaluationReport
 from src.domain.event import Event
 from src.domain.evidence import Evidence
+from src.domain.scoring.flags import BlockingFlag
+from src.domain.scoring.metric import Metric
 from src.domain.session import Session
-from src.infrastructure.db.models import AgentModel, EventModel, EvidenceModel, SessionModel
+from src.infrastructure.db.models import (
+    AgentModel,
+    EvaluationReportModel,
+    EventModel,
+    EvidenceModel,
+    SessionModel,
+)
 
 
 class SqlAlchemyGovernanceRepository:
@@ -66,6 +83,22 @@ class SqlAlchemyGovernanceRepository:
             )
         ).all()
         return [_to_evidence(row) for row in rows]
+
+    async def add_report(self, report: EvaluationReport) -> None:
+        # One report per session: replace any existing one so scoring stays idempotent.
+        await self._session.execute(
+            delete(EvaluationReportModel).where(
+                EvaluationReportModel.session_id == report.session_id
+            )
+        )
+        self._session.add(_to_report_model(report))
+        await self._session.flush()
+
+    async def get_report_by_session(self, session_id: str) -> EvaluationReport | None:
+        row = await self._session.scalar(
+            select(EvaluationReportModel).where(EvaluationReportModel.session_id == session_id)
+        )
+        return _to_report(row) if row is not None else None
 
 
 def _to_agent(row: AgentModel) -> Agent:
@@ -160,4 +193,62 @@ def _to_evidence(row: EvidenceModel) -> Evidence:
         value=row.value,
         evidence_id=row.evidence_id,
         generated_at=row.generated_at,
+    )
+
+
+def _to_report_model(report: EvaluationReport) -> EvaluationReportModel:
+    return EvaluationReportModel(
+        report_id=report.report_id,
+        session_id=report.session_id,
+        score_global=report.score_global,
+        result=report.result.value,
+        score_conversational=report.score_conversational,
+        score_operational=report.score_operational,
+        score_technical=report.score_technical,
+        score_risk=report.score_risk,
+        blocking_flags=[
+            {"code": flag.code, "reason": flag.reason} for flag in report.blocking_flags
+        ],
+        metrics=[_metric_to_dict(metric) for metric in report.metrics],
+        generated_at=report.generated_at,
+    )
+
+
+def _to_report(row: EvaluationReportModel) -> EvaluationReport:
+    return EvaluationReport(
+        session_id=row.session_id,
+        score_global=row.score_global,
+        result=EvaluationResult(row.result),
+        score_conversational=row.score_conversational,
+        score_operational=row.score_operational,
+        score_technical=row.score_technical,
+        score_risk=row.score_risk,
+        blocking_flags=[
+            BlockingFlag(code=flag["code"], reason=flag["reason"]) for flag in row.blocking_flags
+        ],
+        metrics=[_dict_to_metric(data) for data in row.metrics],
+        report_id=row.report_id,
+        generated_at=row.generated_at,
+    )
+
+
+def _metric_to_dict(metric: Metric) -> dict[str, Any]:
+    return {
+        "code": metric.code,
+        "dimension": metric.dimension.value,
+        "raw_value": metric.raw_value,
+        "normalized_score": metric.normalized_score,
+        "weight": metric.weight,
+        "unit": metric.unit,
+    }
+
+
+def _dict_to_metric(data: dict[str, Any]) -> Metric:
+    return Metric(
+        code=data["code"],
+        dimension=Dimension(data["dimension"]),
+        raw_value=data["raw_value"],
+        normalized_score=data["normalized_score"],
+        weight=data["weight"],
+        unit=data["unit"],
     )

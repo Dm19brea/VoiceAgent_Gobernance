@@ -1,4 +1,5 @@
 from src.domain.agent import Agent
+from src.domain.evaluation_report import EvaluationReport
 from src.domain.evidence import Evidence
 from src.domain.session import Session
 
@@ -10,6 +11,7 @@ class InMemoryGovernanceRepository:
         self.agents: dict[str, Agent] = {}  # keyed by vapi_assistant_id
         self.sessions: dict[str, Session] = {}  # keyed by session_id
         self.evidences: dict[str, list[Evidence]] = {}  # keyed by session_id
+        self.reports: dict[str, EvaluationReport] = {}  # keyed by session_id
 
     async def get_agent_by_assistant_id(self, assistant_id: str) -> Agent | None:
         return self.agents.get(assistant_id)
@@ -29,3 +31,9 @@ class InMemoryGovernanceRepository:
 
     async def get_evidences_by_session(self, session_id: str) -> list[Evidence]:
         return self.evidences.get(session_id, [])
+
+    async def add_report(self, report: EvaluationReport) -> None:
+        self.reports[report.session_id] = report  # one report per session (replace)
+
+    async def get_report_by_session(self, session_id: str) -> EvaluationReport | None:
+        return self.reports.get(session_id)
