@@ -19,6 +19,7 @@ COPY alembic.ini ./alembic.ini
 
 EXPOSE 8000
 
-# Start the API server. Railway injects a dynamic $PORT; shell form is required
-# so ${PORT} is expanded at runtime.
-CMD uv run --no-dev uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Run DB migrations, then start the server. Railway injects a dynamic $PORT;
+# shell form is required so ${PORT} is expanded at runtime.
+CMD uv run --no-dev alembic upgrade head && \
+    uv run --no-dev uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}
