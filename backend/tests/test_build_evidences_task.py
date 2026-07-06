@@ -37,3 +37,25 @@ async def test_task_on_unknown_session_returns_zero(db_session: AsyncSession) ->
     count = await build_session_evidences_async("does-not-exist")
 
     assert count == 0
+
+
+async def test_rebuilding_evidences_does_not_duplicate(db_session: AsyncSession) -> None:
+    """Vapi can deliver the end-of-call webhook more than once, so the build task
+    can run twice for the same session. Evidences must be replaced, not duplicated."""
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-dup")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-dup", agent.agent_id, START)
+    session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
+    session.record(
+        EventType.SESSION_ENDED, Source.PLATFORM, END, {"report": {"ended_reason": "ok"}}
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    first = await build_session_evidences_async("call-dup")
+    await build_session_evidences_async("call-dup")
+
+    evidences = await repo.get_evidences_by_session("call-dup")
+    assert len(evidences) == first

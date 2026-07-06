@@ -72,6 +72,13 @@ class SqlAlchemyGovernanceRepository:
             await self._session.execute(stmt)
 
     async def add_evidences(self, evidences: list[Evidence]) -> None:
+        # Evidences are rebuilt per session (the webhook can fire more than once),
+        # so replace any existing ones for the affected sessions to stay idempotent.
+        session_ids = {evidence.session_id for evidence in evidences}
+        if session_ids:
+            await self._session.execute(
+                delete(EvidenceModel).where(EvidenceModel.session_id.in_(session_ids))
+            )
         for evidence in evidences:
             self._session.add(_to_evidence_model(evidence))
         await self._session.flush()
