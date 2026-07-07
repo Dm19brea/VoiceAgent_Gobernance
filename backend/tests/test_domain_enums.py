@@ -8,17 +8,44 @@ from src.domain.enums import (
 )
 
 
-def test_event_type_values() -> None:
-    assert EventType.SESSION_STARTED.value == "session.started"
-    assert EventType.SESSION_ENDED.value == "session.ended"
-    assert EventType.CONVERSATION_AGENT_RESPONSE.value == "conversation.agent_response"
-    assert EventType.CONVERSATION_USER_INPUT.value == "conversation.user_input"
+def test_event_type_values_include_doc_31_taxonomy() -> None:
+    expected = {
+        "session.started",
+        "session.ended",
+        "session.failed",
+        "session.evaluation_triggered",
+        "conversation.turn_started",
+        "conversation.turn_ended",
+        "conversation.agent_response",
+        "conversation.user_input",
+        "conversation.silence_detected",
+        "conversation.interruption_detected",
+        "conversation.topic_change",
+        "conversation.goal_achieved",
+        "conversation.goal_failed",
+        "tool.called",
+        "tool.response_received",
+        "tool.failed",
+        "tool.timeout",
+        "tool.retry",
+        "system.latency_measured",
+        "system.model_invocation",
+        "system.error",
+        "system.warning",
+        "system.flag_raised",
+    }
+
+    assert {event_type.value for event_type in EventType} == expected
 
 
 def test_source_values() -> None:
-    assert Source.AGENT.value == "agent"
-    assert Source.USER.value == "user"
-    assert Source.PLATFORM.value == "platform"
+    assert {source.value for source in Source} == {
+        "agent",
+        "user",
+        "platform",
+        "system",
+        "tool",
+    }
 
 
 def test_session_status_values() -> None:

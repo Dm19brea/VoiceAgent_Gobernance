@@ -71,6 +71,21 @@ async def test_end_of_call_closes_session() -> None:
     assert session.ended_at is not None
 
 
+async def test_failed_call_fails_session() -> None:
+    repo = InMemoryGovernanceRepository()
+    use_case = IngestEvent(repo)
+
+    await use_case.execute(_cmd(EventType.SESSION_STARTED))
+    await use_case.execute(_cmd(EventType.SESSION_FAILED))
+
+    session = await repo.get_session("call-1")
+    assert session is not None
+    assert session.status is SessionStatus.FAILED
+    assert session.ended_at is not None
+    assert len(session.events) == 2
+    assert session.events[1].event_type is EventType.SESSION_FAILED
+
+
 async def test_events_after_close_are_ignored() -> None:
     repo = InMemoryGovernanceRepository()
     use_case = IngestEvent(repo)
@@ -82,6 +97,20 @@ async def test_events_after_close_are_ignored() -> None:
     session = await repo.get_session("call-1")
     assert session is not None
     assert session.status is SessionStatus.ENDED
+    assert len(session.events) == 2
+
+
+async def test_events_after_failed_are_ignored() -> None:
+    repo = InMemoryGovernanceRepository()
+    use_case = IngestEvent(repo)
+
+    await use_case.execute(_cmd(EventType.SESSION_STARTED))
+    await use_case.execute(_cmd(EventType.SESSION_FAILED))
+    await use_case.execute(_cmd(EventType.CONVERSATION_USER_INPUT, source=Source.USER))
+
+    session = await repo.get_session("call-1")
+    assert session is not None
+    assert session.status is SessionStatus.FAILED
     assert len(session.events) == 2
 
 

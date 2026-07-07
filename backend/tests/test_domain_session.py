@@ -40,9 +40,33 @@ def test_session_ended_event_closes_session() -> None:
     assert session.ended_at == ended_at
 
 
+def test_session_failed_event_fails_session() -> None:
+    session = _session()
+    failed_at = datetime.now(UTC)
+
+    event = session.record(
+        EventType.SESSION_FAILED,
+        Source.PLATFORM,
+        failed_at,
+        {"reason": "timeout"},
+    )
+
+    assert event.event_type is EventType.SESSION_FAILED
+    assert session.status is SessionStatus.FAILED
+    assert session.ended_at == failed_at
+
+
 def test_record_after_close_rejected() -> None:
     session = _session()
     session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+
+    with pytest.raises(SessionClosedError):
+        session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, datetime.now(UTC), {})
+
+
+def test_record_after_failed_rejected() -> None:
+    session = _session()
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, datetime.now(UTC), {})
 
     with pytest.raises(SessionClosedError):
         session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, datetime.now(UTC), {})

@@ -32,8 +32,8 @@ class Session:
     ) -> Event:
         """Append a new event, assigning the next sequence number.
 
-        Closes the session when a ``session.ended`` event is recorded. Rejects any
-        event once the session is no longer active.
+        Closes the session when a terminal event is recorded. Rejects any event
+        once the session is no longer active.
         """
         if self.status is not SessionStatus.ACTIVE:
             raise SessionClosedError(f"Session {self.session_id} is {self.status}")
@@ -50,6 +50,9 @@ class Session:
 
         if event_type is EventType.SESSION_ENDED:
             self.status = SessionStatus.ENDED
+            self.ended_at = timestamp
+        elif event_type is EventType.SESSION_FAILED:
+            self.status = SessionStatus.FAILED
             self.ended_at = timestamp
 
         return event
