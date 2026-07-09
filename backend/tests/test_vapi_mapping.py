@@ -226,7 +226,7 @@ def test_end_of_call_report_with_error_reason_maps_to_session_failed() -> None:
 
 
 def test_classify_terminal_event_does_not_false_positive_on_default() -> None:
-    """"default" contains the substring "fault" as a false cognate; it must not be
+    """ "default" contains the substring "fault" as a false cognate; it must not be
     misclassified as a failure just because "fault" appears inside another word."""
     assert classify_terminal_event("customer-selected-default-voice") is EventType.SESSION_ENDED
 

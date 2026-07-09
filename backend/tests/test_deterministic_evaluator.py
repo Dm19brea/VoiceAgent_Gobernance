@@ -55,9 +55,7 @@ def _evaluate(session: Session) -> EvaluationReport:
 
 
 def test_failed_session_raises_flag_session_failed_and_result_is_failed() -> None:
-    report = _evaluate(
-        _failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"})
-    )
+    report = _evaluate(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
 
     assert report.result is EvaluationResult.FAILED
     assert [flag.code for flag in report.blocking_flags] == [FLAG_SESSION_FAILED]

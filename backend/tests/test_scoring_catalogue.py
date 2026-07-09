@@ -103,9 +103,7 @@ def test_clean_ending_is_zero_for_an_error_reason() -> None:
 
 
 def test_clean_ending_is_computed_for_a_failed_session() -> None:
-    metrics = _metrics(
-        _failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"})
-    )
+    metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
 
     assert "clean_ending" in metrics
     assert metrics["clean_ending"].raw_value == 0.0
@@ -113,9 +111,7 @@ def test_clean_ending_is_computed_for_a_failed_session() -> None:
 
 
 def test_failed_session_has_no_completion_metric() -> None:
-    metrics = _metrics(
-        _failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"})
-    )
+    metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
 
     assert "completion" not in metrics
     assert metrics["clean_ending"].raw_value == 0.0
