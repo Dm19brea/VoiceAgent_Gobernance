@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 from src.domain.enums import Dimension, EventType, Source
 from src.domain.evidence_builder import build_evidences
 from src.domain.scoring.catalogue import build_metrics
@@ -106,7 +108,7 @@ def test_clean_ending_is_computed_for_a_failed_session() -> None:
     metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
 
     assert "clean_ending" in metrics
-    assert metrics["clean_ending"].raw_value == 0.0
+    assert metrics["clean_ending"].raw_value == pytest.approx(0.0)
     assert metrics["clean_ending"].normalized_score == 0
 
 
@@ -114,7 +116,7 @@ def test_failed_session_has_no_completion_metric() -> None:
     metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
 
     assert "completion" not in metrics
-    assert metrics["clean_ending"].raw_value == 0.0
+    assert metrics["clean_ending"].raw_value == pytest.approx(0.0)
 
 
 def test_metrics_without_source_evidence_are_omitted() -> None:
