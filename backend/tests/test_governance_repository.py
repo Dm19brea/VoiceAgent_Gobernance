@@ -182,8 +182,7 @@ async def test_unique_session_sequence_prevents_competing_canonical_appends(
     repo = SqlAlchemyGovernanceRepository(db_session)
     event_table = cast(Table, EventModel.__table__)
     assert any(
-        isinstance(constraint, UniqueConstraint)
-        and constraint.name == "uq_events_session_sequence"
+        isinstance(constraint, UniqueConstraint) and constraint.name == "uq_events_session_sequence"
         for constraint in event_table.constraints
     )
     constraint_exists = await db_session.scalar(

@@ -75,9 +75,7 @@ class SqlAlchemyGovernanceRepository:
         statement = select(SessionModel).where(SessionModel.session_id == session_id)
         if for_update:
             statement = statement.with_for_update()
-        row = await self._session.scalar(
-            statement
-        )
+        row = await self._session.scalar(statement)
         if row is None:
             return None
         event_rows = (
@@ -118,11 +116,9 @@ class SqlAlchemyGovernanceRepository:
             .where(SessionModel.session_id == event.session_id)
             .with_for_update()
         )
-        max_sequence = (
-            await self._session.scalar(
-                select(func.coalesce(func.max(EventModel.sequence_number), 0)).where(
-                    EventModel.session_id == event.session_id
-                )
+        max_sequence = await self._session.scalar(
+            select(func.coalesce(func.max(EventModel.sequence_number), 0)).where(
+                EventModel.session_id == event.session_id
             )
         )
         next_sequence = (max_sequence or 0) + 1
