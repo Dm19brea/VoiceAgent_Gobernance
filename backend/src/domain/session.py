@@ -5,7 +5,9 @@ from uuid import UUID
 
 from src.domain.enums import EventType, SessionStatus, Source
 from src.domain.event import Event
-from src.domain.exceptions import SessionClosedError
+from src.domain.exceptions import DomainError, SessionClosedError
+
+_MARKER_EVENTS = frozenset({EventType.SESSION_EVALUATION_TRIGGERED})
 
 
 @dataclass
@@ -54,5 +56,35 @@ class Session:
         elif event_type is EventType.SESSION_FAILED:
             self.status = SessionStatus.FAILED
             self.ended_at = timestamp
+
+        return event
+
+    def append_marker(
+        self,
+        event_type: EventType,
+        source: Source,
+        timestamp: datetime,
+        payload: dict[str, Any],
+    ) -> Event:
+        """Append a post-terminal marker event, without touching status/ended_at.
+
+        Unlike ``record``, this is only valid once the session is no longer
+        active (the session must already be ENDED or FAILED), and only for
+        the marker event set (e.g. ``session.evaluation_triggered``).
+        """
+        if self.status is SessionStatus.ACTIVE:
+            raise SessionClosedError(f"Session {self.session_id} is still active")
+        if event_type not in _MARKER_EVENTS:
+            raise DomainError(f"{event_type} is not a valid marker event")
+
+        event = Event(
+            session_id=self.session_id,
+            event_type=event_type,
+            source=source,
+            sequence_number=len(self.events) + 1,
+            timestamp=timestamp,
+            payload=payload,
+        )
+        self.events.append(event)
 
         return event
