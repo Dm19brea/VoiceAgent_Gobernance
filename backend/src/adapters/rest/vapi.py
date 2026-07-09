@@ -19,6 +19,8 @@ from src.infrastructure.repositories.governance_repository import SqlAlchemyGove
 
 router = APIRouter()
 
+_TERMINAL_EVENTS = (EventType.SESSION_ENDED, EventType.SESSION_FAILED)
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
@@ -63,7 +65,7 @@ async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, s
 
     # Session closed: build its evidences asynchronously (does not block the response).
     # A broker failure must not break ingestion, so the enqueue is best-effort.
-    if command is not None and command.event_type is EventType.SESSION_ENDED:
+    if command is not None and command.event_type in _TERMINAL_EVENTS:
         try:
             build_session_evidences.delay(command.call_id)
         except Exception:

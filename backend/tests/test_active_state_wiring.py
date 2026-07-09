@@ -56,6 +56,30 @@ async def test_ingestion_marks_session_active_then_ended(
     assert "call-a" not in store.active
 
 
+async def test_ingestion_marks_session_active_then_failed(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = _FakeStore()
+    monkeypatch.setattr("src.adapters.rest.vapi.get_active_session_store", lambda: store)
+    monkeypatch.setattr("src.adapters.rest.vapi.build_session_evidences", _NoopTask())
+
+    call = {"id": "call-b", "assistantId": "asst-b"}
+    started = {"message": {"type": "status-update", "status": "in-progress", "call": call}}
+    failed = {
+        "message": {
+            "type": "end-of-call-report",
+            "endedReason": "pipeline-error-openai-llm-failed",
+            "call": call,
+        }
+    }
+
+    await client.post("/webhooks/vapi", json=started)
+    assert "call-b" in store.active
+
+    await client.post("/webhooks/vapi", json=failed)
+    assert "call-b" not in store.active
+
+
 async def test_ingestion_survives_a_redis_failure(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
