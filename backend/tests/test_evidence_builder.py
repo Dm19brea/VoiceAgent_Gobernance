@@ -20,6 +20,15 @@ def _closed_session(report: dict[str, Any] | None = None) -> Session:
     return session
 
 
+def _failed_session(report: dict[str, Any] | None = None) -> Session:
+    session = Session.open("call-1", uuid4(), START)
+    session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
+    session.record(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, START, {})
+    session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, START, {})
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, END, {"report": report or {}})
+    return session
+
+
 def _by_criterion(evidences: list[Evidence]) -> dict[str, Evidence]:
     return {e.criterion: e for e in evidences}
 
@@ -66,6 +75,42 @@ def test_missing_ended_reason_does_not_crash() -> None:
 
     assert "ended_reason" not in evidences
     assert "session_completed" in evidences
+
+
+def test_failed_session_yields_session_failed_criterion_not_completed() -> None:
+    evidences = _by_criterion(
+        build_evidences(
+            _failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"})
+        )
+    )
+
+    assert "session_completed" not in evidences
+    failed = evidences["session_failed"]
+    assert failed.evidence_type is EvidenceType.DIRECT
+    assert failed.dimension is Dimension.TECHNICAL
+    assert failed.conclusion == "The session failed"
+
+
+def test_failed_session_still_yields_ended_reason_evidence() -> None:
+    evidences = _by_criterion(
+        build_evidences(
+            _failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"})
+        )
+    )
+
+    reason = evidences["ended_reason"]
+    assert reason.evidence_type is EvidenceType.DIRECT
+    assert "pipeline-error-openai-llm-failed" in reason.conclusion
+
+
+def test_failed_session_duration_evidence_includes_terminal_event() -> None:
+    session = _failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"})
+    terminal_event = session.events[-1]
+
+    evidences = _by_criterion(build_evidences(session))
+
+    duration = evidences["session_duration_seconds"]
+    assert terminal_event.event_id in duration.source_events
 
 
 def _summary(evidences: list[Evidence]) -> dict[str, tuple[str, float | None]]:

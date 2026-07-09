@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from src.adapters.rest.vapi_mapping import map_vapi_event
+from src.adapters.rest.vapi_mapping import classify_terminal_event, map_vapi_event
 from src.domain.enums import EventType, Source
 
 
@@ -131,3 +131,119 @@ def test_message_without_call_id_is_not_promoted() -> None:
     result = map_vapi_event({"message": {"type": "tool-calls"}})
 
     assert result is None
+
+
+@pytest.mark.parametrize(
+    "ended_reason",
+    [
+        "customer-ended-call",
+        "assistant-ended-call",
+        None,
+        "",
+        123,
+        "some-unrecognized-reason",
+    ],
+)
+def test_classify_terminal_event_normal_reasons_end_the_session(ended_reason: object) -> None:
+    assert classify_terminal_event(ended_reason) is EventType.SESSION_ENDED
+
+
+@pytest.mark.parametrize(
+    "ended_reason",
+    [
+        "assistant-error-something",
+        "pipeline-fault-detected",
+        "PIPELINE-ERROR-OPENAI",
+    ],
+)
+def test_classify_terminal_event_error_substrings_fail_the_session(ended_reason: str) -> None:
+    assert classify_terminal_event(ended_reason) is EventType.SESSION_FAILED
+
+
+@pytest.mark.parametrize(
+    "ended_reason",
+    [
+        "pipeline-no-available-model",
+        "call.start.error-vapifault-openai-llm-failed",
+        "call.in-progress.error-vapifault-openai-llm-failed",
+        "call-start-error-something",
+        "twilio-failed-to-connect-call",
+        "vonage-disconnected",
+        "assistant-request-returned-invalid-response",
+    ],
+)
+def test_classify_terminal_event_prefix_families_fail_the_session(ended_reason: str) -> None:
+    assert classify_terminal_event(ended_reason) is EventType.SESSION_FAILED
+
+
+@pytest.mark.parametrize(
+    "ended_reason",
+    [
+        "pipeline-vapi-voice-failed",
+        "pipeline-vapi-transcriber-failed",
+        "call.in-progress.error-vapi-transport-never-connected",
+        "call.in-progress.error-vapi-worker-crashed",
+    ],
+)
+def test_classify_terminal_event_contains_family_fails_the_session(ended_reason: str) -> None:
+    assert classify_terminal_event(ended_reason) is EventType.SESSION_FAILED
+
+
+@pytest.mark.parametrize(
+    "ended_reason",
+    [
+        "llm-failed",
+        "pipeline-no-available-llm-model",
+        "phone-call-provider-closed-websocket",
+        "worker-shutdown",
+        "assistant-not-found",
+        "assistant-not-valid",
+        "assistant-request-failed",
+        "assistant-join-timed-out",
+    ],
+)
+def test_classify_terminal_event_explicit_named_failures_fail_the_session(
+    ended_reason: str,
+) -> None:
+    assert classify_terminal_event(ended_reason) is EventType.SESSION_FAILED
+
+
+def test_end_of_call_report_with_error_reason_maps_to_session_failed() -> None:
+    result = map_vapi_event(
+        _webhook(
+            {
+                "type": "end-of-call-report",
+                "endedReason": "pipeline-error-openai-llm-failed",
+                "durationSeconds": 12,
+                "summary": "Call summary",
+            }
+        )
+    )
+
+    assert result is not None
+    assert result.event_type is EventType.SESSION_FAILED
+    assert result.payload["report"]["ended_reason"] == "pipeline-error-openai-llm-failed"
+
+
+def test_classify_terminal_event_does_not_false_positive_on_default() -> None:
+    """ "default" contains the substring "fault" as a false cognate; it must not be
+    misclassified as a failure just because "fault" appears inside another word."""
+    assert classify_terminal_event("customer-selected-default-voice") is EventType.SESSION_ENDED
+
+
+def test_classify_terminal_event_bare_vapifault_still_fails_the_session() -> None:
+    assert classify_terminal_event("vapifault-openai-llm-failed") is EventType.SESSION_FAILED
+
+
+def test_end_of_call_report_with_normal_reason_still_maps_to_session_ended() -> None:
+    result = map_vapi_event(
+        _webhook(
+            {
+                "type": "end-of-call-report",
+                "endedReason": "customer-ended-call",
+            }
+        )
+    )
+
+    assert result is not None
+    assert result.event_type is EventType.SESSION_ENDED

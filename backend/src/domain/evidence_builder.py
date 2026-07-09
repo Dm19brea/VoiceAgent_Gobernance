@@ -8,6 +8,11 @@ _CONVERSATION_TYPES = (
     EventType.CONVERSATION_USER_INPUT,
 )
 
+# A session's trace terminates with either a clean ENDED event or a FAILED one;
+# both carry the same end-of-call report shape and must feed the same
+# terminal-derived evidence (duration, ended_reason, completion).
+TERMINAL_EVENT_TYPES = (EventType.SESSION_ENDED, EventType.SESSION_FAILED)
+
 
 def build_evidences(session: Session) -> list[Evidence]:
     """Turn a session's event trace into structured evidences (pure, deterministic)."""
@@ -23,7 +28,7 @@ def build_evidences(session: Session) -> list[Evidence]:
     evidences.append(_turns(session.session_id, "user_turns", "user turns", user_events))
 
     started_events = [e for e in events if e.event_type is EventType.SESSION_STARTED]
-    ended_events = [e for e in events if e.event_type is EventType.SESSION_ENDED]
+    ended_events = [e for e in events if e.event_type in TERMINAL_EVENT_TYPES]
 
     if session.ended_at is not None:
         duration = (session.ended_at - session.started_at).total_seconds()
@@ -41,12 +46,16 @@ def build_evidences(session: Session) -> list[Evidence]:
 
     if ended_events:
         ended = ended_events[-1]
+        if ended.event_type is EventType.SESSION_FAILED:
+            criterion, conclusion = "session_failed", "The session failed"
+        else:
+            criterion, conclusion = "session_completed", "The session completed"
         evidences.append(
             Evidence(
                 session_id=session.session_id,
                 evidence_type=EvidenceType.DIRECT,
-                criterion="session_completed",
-                conclusion="The session completed",
+                criterion=criterion,
+                conclusion=conclusion,
                 dimension=Dimension.TECHNICAL,
                 source_events=[ended.event_id],
             )

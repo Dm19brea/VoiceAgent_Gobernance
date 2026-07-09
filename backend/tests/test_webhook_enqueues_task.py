@@ -26,3 +26,26 @@ async def test_webhook_enqueues_evidence_task_on_session_ended(
 
     assert response.status_code == 200
     assert fake.calls == ["call-e"]
+
+
+async def test_webhook_enqueues_evidence_task_on_session_failed(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _FakeTask()
+    monkeypatch.setattr("src.adapters.rest.vapi.build_session_evidences", fake)
+
+    call = {"id": "call-fail", "assistantId": "asst-fail"}
+    started = {"message": {"type": "status-update", "status": "in-progress", "call": call}}
+    ended = {
+        "message": {
+            "type": "end-of-call-report",
+            "endedReason": "pipeline-error-openai-llm-failed",
+            "call": call,
+        }
+    }
+
+    await client.post("/webhooks/vapi", json=started)
+    response = await client.post("/webhooks/vapi", json=ended)
+
+    assert response.status_code == 200
+    assert fake.calls == ["call-fail"]

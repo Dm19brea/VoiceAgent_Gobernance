@@ -8,7 +8,7 @@ from src.domain.enums import EvaluationResult, EventType, Source
 from src.domain.evaluation_report import EvaluationReport
 from src.domain.evidence_builder import build_evidences
 from src.domain.scoring.evaluator import DeterministicEvaluator
-from src.domain.scoring.flags import FLAG_SESSION_NOT_COMPLETED
+from src.domain.scoring.flags import FLAG_SESSION_FAILED, FLAG_SESSION_NOT_COMPLETED
 from src.domain.session import Session
 
 START = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
@@ -37,8 +37,28 @@ def _closed_session(
     return session
 
 
+def _failed_session(
+    *,
+    agent_turns: int = 1,
+    user_turns: int = 1,
+    duration_seconds: int = 47,
+    report: dict[str, Any] | None = None,
+) -> Session:
+    session = _open_session(agent_turns=agent_turns, user_turns=user_turns)
+    end = START + timedelta(seconds=duration_seconds)
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, end, {"report": report or {}})
+    return session
+
+
 def _evaluate(session: Session) -> EvaluationReport:
     return DeterministicEvaluator().evaluate(session, build_evidences(session))
+
+
+def test_failed_session_raises_flag_session_failed_and_result_is_failed() -> None:
+    report = _evaluate(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
+
+    assert report.result is EvaluationResult.FAILED
+    assert [flag.code for flag in report.blocking_flags] == [FLAG_SESSION_FAILED]
 
 
 def test_blocking_flag_forces_failed_despite_high_score() -> None:  # S4

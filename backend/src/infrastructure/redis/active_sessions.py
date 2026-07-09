@@ -65,7 +65,7 @@ async def update_active_state(
                     started_at=session.started_at,
                 )
             )
-    elif command.event_type is EventType.SESSION_ENDED:
+    elif command.event_type in (EventType.SESSION_ENDED, EventType.SESSION_FAILED):
         await store.mark_ended(command.call_id)
 
 

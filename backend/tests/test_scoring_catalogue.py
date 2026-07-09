@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 from src.domain.enums import Dimension, EventType, Source
 from src.domain.evidence_builder import build_evidences
 from src.domain.scoring.catalogue import build_metrics
@@ -28,6 +30,24 @@ def _closed_session(
         session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, START, {})
     end = START + timedelta(seconds=duration_seconds)
     session.record(EventType.SESSION_ENDED, Source.PLATFORM, end, {"report": report or {}})
+    return session
+
+
+def _failed_session(
+    *,
+    agent_turns: int = 1,
+    user_turns: int = 1,
+    duration_seconds: int = 47,
+    report: dict[str, Any] | None = None,
+) -> Session:
+    session = Session.open("call-1", uuid4(), START)
+    session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
+    for _ in range(agent_turns):
+        session.record(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, START, {})
+    for _ in range(user_turns):
+        session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, START, {})
+    end = START + timedelta(seconds=duration_seconds)
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, end, {"report": report or {}})
     return session
 
 
@@ -82,6 +102,21 @@ def test_clean_ending_is_zero_for_an_error_reason() -> None:
     metrics = _metrics(_closed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
 
     assert metrics["clean_ending"].normalized_score == 0
+
+
+def test_clean_ending_is_computed_for_a_failed_session() -> None:
+    metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
+
+    assert "clean_ending" in metrics
+    assert metrics["clean_ending"].raw_value == pytest.approx(0.0)
+    assert metrics["clean_ending"].normalized_score == 0
+
+
+def test_failed_session_has_no_completion_metric() -> None:
+    metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
+
+    assert "completion" not in metrics
+    assert metrics["clean_ending"].raw_value == pytest.approx(0.0)
 
 
 def test_metrics_without_source_evidence_are_omitted() -> None:

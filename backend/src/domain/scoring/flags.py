@@ -1,7 +1,6 @@
 """Blocking flags: conditions that force result = failed regardless of score (design D4, R5).
 
-Detection is pure and deterministic. M4 detects the conditions observable now; more flags
-(e.g. ``session_failed``) plug in here as the events that reveal them are captured.
+Detection is pure and deterministic.
 """
 
 from collections.abc import Sequence
@@ -10,6 +9,7 @@ from dataclasses import dataclass
 from src.domain.evidence import Evidence
 
 FLAG_SESSION_NOT_COMPLETED = "session_not_completed"
+FLAG_SESSION_FAILED = "session_failed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +25,14 @@ def detect_blocking_flags(evidences: Sequence[Evidence]) -> list[BlockingFlag]:
     flags: list[BlockingFlag] = []
     criteria = {evidence.criterion for evidence in evidences}
 
-    if "session_completed" not in criteria:
+    if "session_failed" in criteria:
+        flags.append(
+            BlockingFlag(
+                code=FLAG_SESSION_FAILED,
+                reason="The session ended with an uncontrolled error.",
+            )
+        )
+    elif "session_completed" not in criteria:
         flags.append(
             BlockingFlag(
                 code=FLAG_SESSION_NOT_COMPLETED,

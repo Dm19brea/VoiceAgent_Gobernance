@@ -7,8 +7,9 @@ faked (R10). The categorical ``clean_ending`` reads the session's normalised rep
 
 from collections.abc import Sequence
 
-from src.domain.enums import Dimension, EventType
+from src.domain.enums import Dimension
 from src.domain.evidence import Evidence
+from src.domain.evidence_builder import TERMINAL_EVENT_TYPES
 from src.domain.scoring import normalisation
 from src.domain.scoring.metric import Metric
 from src.domain.session import Session
@@ -90,7 +91,7 @@ def build_metrics(session: Session, evidences: Sequence[Evidence]) -> list[Metri
 
 def _ended_reason(session: Session) -> str | None:
     for event in reversed(session.events):
-        if event.event_type is EventType.SESSION_ENDED:
+        if event.event_type in TERMINAL_EVENT_TYPES:
             report = event.payload.get("report") or {}
             return report.get("ended_reason")
     return None
