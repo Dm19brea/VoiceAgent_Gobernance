@@ -20,6 +20,59 @@ _SYSTEM_WARNING_TYPES = {
 }
 _SYSTEM_WARNING_PREFIXES = ("chat.", "session.")
 
+_FAILURE_SUBSTRINGS = ("error", "vapifault")
+_FAILURE_PREFIXES = (
+    "pipeline-",
+    "call.start.error-",
+    "call.in-progress.error-",
+    "call-start-error-",
+    "twilio-",
+    "vonage-",
+    "assistant-request-returned-",
+)
+_FAILURE_CONTAINS = (
+    "-voice-failed",
+    "-transcriber-failed",
+    "-transport-",
+    "-worker-",
+)
+_FAILURE_REASONS = frozenset(
+    {
+        "llm-failed",
+        "pipeline-no-available-llm-model",
+        "phone-call-provider-closed-websocket",
+        "worker-shutdown",
+        "assistant-not-found",
+        "assistant-not-valid",
+        "assistant-request-failed",
+        "assistant-join-timed-out",
+    }
+)
+
+
+def classify_terminal_event(ended_reason: object) -> EventType:
+    """Classify a Vapi ``end-of-call-report`` ``endedReason`` as failed or ended.
+
+    Fail-safe by default: only recognized error signals resolve to
+    ``SESSION_FAILED``; anything else (including ``None`` and unknown
+    strings) resolves to ``SESSION_ENDED``.
+    """
+    if not isinstance(ended_reason, str) or not ended_reason:
+        return EventType.SESSION_ENDED
+
+    reason = ended_reason.lower()
+
+    if reason in _FAILURE_REASONS:
+        return EventType.SESSION_FAILED
+    if any(substring in reason for substring in _FAILURE_SUBSTRINGS):
+        return EventType.SESSION_FAILED
+    if reason.startswith(_FAILURE_PREFIXES):
+        return EventType.SESSION_FAILED
+    if any(fragment in reason for fragment in _FAILURE_CONTAINS):
+        return EventType.SESSION_FAILED
+
+    return EventType.SESSION_ENDED
+
 
 def map_vapi_event(webhook: dict[str, Any]) -> IngestEventCommand | None:
     """Translate a Vapi server-message webhook to a canonical ingest command.
@@ -75,7 +128,7 @@ def _resolve(vapi_type: str, message: dict[str, Any]) -> tuple[EventType, Source
     if vapi_type == "assistant.started":
         return (EventType.SESSION_STARTED, Source.PLATFORM)
     if vapi_type == "end-of-call-report":
-        return (EventType.SESSION_ENDED, Source.PLATFORM)
+        return (classify_terminal_event(message.get("endedReason")), Source.PLATFORM)
     if vapi_type == "speech-update":
         return _resolve_speech_update(message)
     if vapi_type == "assistant.speechStarted":
