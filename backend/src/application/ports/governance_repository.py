@@ -2,6 +2,7 @@ from typing import Protocol
 
 from src.domain.agent import Agent
 from src.domain.evaluation_report import EvaluationReport
+from src.domain.event import Event
 from src.domain.evidence import Evidence
 from src.domain.session import Session
 
@@ -21,6 +22,8 @@ class GovernanceRepository(Protocol):
     async def get_session(self, session_id: str) -> Session | None: ...
 
     async def save_session(self, session: Session) -> None: ...
+
+    async def append_marker_event(self, event: Event) -> None: ...
 
     async def add_evidences(self, evidences: list[Evidence]) -> None: ...
 

@@ -1,5 +1,6 @@
 from src.domain.agent import Agent
 from src.domain.evaluation_report import EvaluationReport
+from src.domain.event import Event
 from src.domain.evidence import Evidence
 from src.domain.session import Session
 
@@ -12,6 +13,7 @@ class InMemoryGovernanceRepository:
         self.sessions: dict[str, Session] = {}  # keyed by session_id
         self.evidences: dict[str, list[Evidence]] = {}  # keyed by session_id
         self.reports: dict[str, EvaluationReport] = {}  # keyed by session_id
+        self.marker_events: list[Event] = []
 
     async def get_agent_by_assistant_id(self, assistant_id: str) -> Agent | None:
         return self.agents.get(assistant_id)
@@ -24,6 +26,9 @@ class InMemoryGovernanceRepository:
 
     async def save_session(self, session: Session) -> None:
         self.sessions[session.session_id] = session
+
+    async def append_marker_event(self, event: Event) -> None:
+        self.marker_events.append(event)
 
     async def add_evidences(self, evidences: list[Evidence]) -> None:
         for evidence in evidences:
