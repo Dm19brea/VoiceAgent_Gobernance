@@ -9,7 +9,7 @@ This document tracks how each canonical `EventType` from `backend/src/domain/enu
 | `session.started` | Yes | No | `status-update` with `status=in-progress`; `assistant.started` | Implemented. |
 | `session.ended` | Yes | No | `end-of-call-report` | Implemented. `end-of-call-report` is authoritative because it carries final evidence. |
 | `session.failed` | Yes | Yes | `end-of-call-report` (via `classify_terminal_event`) | Implemented. Classified from `endedReason` on `end-of-call-report`; see `classify_terminal_event` in `backend/src/adapters/rest/vapi_mapping.py`. |
-| `session.evaluation_triggered` | No | Yes | None | Pending platform event when automatic evaluation starts. |
+| `session.evaluation_triggered` | No | Yes | N/A — platform-emitted marker (not from a Vapi webhook) | Implemented. Appended post-terminal at the start of `build_session_evidences_async`; see `RecordEvaluationTriggered` in `backend/src/application/use_cases/record_evaluation_triggered.py` and `Session.append_marker` in `backend/src/domain/session.py`. |
 | `conversation.turn_started` | Yes | No | `speech-update` with `status=started` | Implemented. Source comes from `role` when present. |
 | `conversation.turn_ended` | Yes | No | `speech-update` with `status=stopped` | Implemented. Source comes from `role` when present. |
 | `conversation.agent_response` | Yes | No | `assistant.speechStarted`; `transcript` with `role=assistant`; `conversation-update` with `role=assistant`; `speech-update` with `role=assistant` and no status | Implemented. |
