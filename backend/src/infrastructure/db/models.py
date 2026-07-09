@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, func
+from sqlalchemy import DateTime, ForeignKey, Index, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -56,6 +56,23 @@ class EventModel(Base):
     """Persistence model for a canonical event within a session's trace."""
 
     __tablename__ = "events"
+    __table_args__ = (
+        # Enforces at-most-one row per (session_id, event_type) for the
+        # post-terminal marker events, so a retried/duplicate append is a
+        # DB-level no-op via ON CONFLICT ... DO NOTHING. This predicate MUST
+        # stay byte-identical to the Alembic migration that creates the same
+        # index in real deployments (tests build the schema via
+        # ``Base.metadata.create_all``, not Alembic).
+        Index(
+            "uq_events_session_marker",
+            "session_id",
+            "event_type",
+            unique=True,
+            postgresql_where=text(
+                "event_type IN ('session.evaluation_triggered', 'session.failed')"
+            ),
+        ),
+    )
 
     event_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     session_id: Mapped[str] = mapped_column(

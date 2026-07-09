@@ -227,17 +227,7 @@ and adds a dedicated blocking flag.
 - [x] 9.9 Verify — full `uv run pytest -q`, `uv run ruff check`, `uv run mypy`
       on all changed files; all green. Do not commit.
 
-## Downstream (not in this list) — Slice B placeholder
-
-- [ ] `session.evaluation_triggered`: `Session.append_marker()`,
-      `RecordEvaluationTriggered` use case, `GovernanceRepository.append_marker_event`
-      port + SQLAlchemy implementation, partial unique index migration
-      (`(session_id, event_type)` on the two marker types), `tasks.py` wiring
-      with its own pre-evidence commit, remaining coverage-doc row, and tests.
-      Depends on PR-1 (this slice) merged; the migration must be applied
-      out-of-band before deploy.
-
-## Review Workload Forecast
+## Review Workload Forecast (Slice A)
 
 | Metric | Estimate |
 |---|---|
@@ -248,3 +238,267 @@ and adds a dedicated blocking flag.
 | Stays under 400-line budget | Yes |
 | Chained PRs needed | No — this is already the first of the two chained PRs defined in the design (PR-1 of 2); no further split needed within Slice A |
 | Decision needed before apply | No — scope, file list, and TDD order are fully pinned by spec + design; proceed directly to `sdd-apply` |
+
+---
+
+# Tasks — Slice B: `session.evaluation_triggered` (PR-2, chained on PR-1)
+
+Scope: post-terminal domain append, `RecordEvaluationTriggered` use case, the
+repository port + idempotent marker-append implementation, the partial unique
+index (migration + ORM mirror), Celery task wiring at evaluation start, the
+remaining coverage-doc row, and tests. Depends on PR-1 (Slice A) merged.
+
+Strict TDD: every behavior task is RED (failing test) → GREEN (minimal code) →
+REFACTOR (if needed), in that order. Do not write production code before its
+failing test exists. Float assertions in tests MUST use `pytest.approx(...)`,
+never bare `==`, on any `float` comparison (`raw_value`, `score_*`) — the
+external PR checker rejects float `==`.
+
+## 0. Pre-flight — confirm the current Alembic head
+
+- [x] 0.1 Run `cd backend && uv run alembic heads` and confirm the single head
+      is `8e3c03e687de` (per design D-migration). Do NOT hardcode this value
+      in the new migration without this check — if the head differs, use the
+      actual head as `down_revision`.
+
+## 1. Domain — `Session.append_marker()`
+
+- [x] 1.1 RED — `backend/tests/test_domain_session.py`: add tests for
+      `append_marker`:
+      - appending `EventType.SESSION_EVALUATION_TRIGGERED` to an `ENDED`
+        session returns an `Event` with `sequence_number == len(events) + 1`
+        (continuing the existing sequence) and leaves `status == ENDED` and
+        `ended_at` unchanged.
+      - same for a `FAILED` session (`status` stays `FAILED`, `ended_at`
+        unchanged).
+      - appending to an `ACTIVE` session raises `SessionClosedError`.
+      - appending a non-marker `event_type` (e.g. `EventType.SESSION_ENDED`)
+        raises `DomainError` (or the chosen exception type — confirm against
+        `src/domain/exceptions.py`).
+      Confirm all fail (`append_marker` does not exist yet).
+      _Spec: "Evaluation-triggered marker at task start" — both scenarios
+      ("Evaluation start is recorded for an ended session" / "... failed
+      session")._
+- [x] 1.2 GREEN — implement `Session.append_marker()` in
+      `backend/src/domain/session.py` per the design: module-level
+      `_MARKER_EVENTS = frozenset({EventType.SESSION_EVALUATION_TRIGGERED})`,
+      guard on `status is ACTIVE` (raise `SessionClosedError`), guard on
+      `event_type not in _MARKER_EVENTS` (raise the domain error), assign
+      `sequence_number = len(self.events) + 1`, append, return the `Event`,
+      and do NOT touch `status`/`ended_at`. Run pytest, confirm 1.1 passes.
+- [x] 1.3 REFACTOR (if needed) — no behavior change.
+
+## 2. Application — port method + `RecordEvaluationTriggered` use case
+
+- [x] 2.1 RED — new `backend/tests/test_record_evaluation_triggered.py`: a
+      fake/stub `GovernanceRepository` capturing calls; assert
+      `RecordEvaluationTriggered(repo).execute(session, timestamp)`:
+      - calls `session.append_marker(SESSION_EVALUATION_TRIGGERED, PLATFORM,
+        timestamp, payload={})` (verify via the returned/appended event on
+        the session, not by mocking the domain method).
+      - calls `repo.append_marker_event(event)` exactly once with that event.
+      Confirm it fails (`RecordEvaluationTriggered` and
+      `append_marker_event` do not exist).
+      _Spec: "Evaluation-triggered marker at task start"; "Event schema" —
+      `source = platform`, `payload MAY be empty`._
+- [x] 2.2 GREEN — add `append_marker_event(self, event: Event) -> None: ...`
+      to the `GovernanceRepository` Protocol in
+      `backend/src/application/ports/governance_repository.py`. Create
+      `backend/src/application/use_cases/record_evaluation_triggered.py` with
+      the `RecordEvaluationTriggered` class per the design (constructor takes
+      the repository; `execute(session, timestamp)` calls
+      `session.append_marker(...)` then `await self._repo.append_marker_event(event)`).
+      Run pytest, confirm 2.1 passes.
+- [x] 2.3 REFACTOR (if needed).
+
+## 3. ORM mirror of the partial unique index (test-suite dependency — read before skipping)
+
+**Why this is NOT optional, unlike the design's "optionally mirror" note:**
+`backend/tests/conftest.py`'s `db_session` fixture creates the schema via
+`Base.metadata.create_all` — it does NOT run Alembic migrations. If the
+partial unique index only exists in the migration, every test in this slice
+that exercises `ON CONFLICT ... index_where=...` will fail in the test suite
+with "no unique or exclusion constraint matching" because the index is
+genuinely absent from the test DB. The ORM mirror is therefore load-bearing
+for Strict TDD here, not cosmetic.
+
+- [x] 3.1 RED — `backend/tests/test_governance_repository.py`: add a test
+      that inserts two `SESSION_EVALUATION_TRIGGERED` events for the same
+      `session_id` directly against the DB (or via `append_marker_event`
+      called twice, once this exists — see section 4) and asserts only one
+      row is persisted. This will fail with a raw DB error (no matching
+      constraint) until 3.2 lands.
+- [x] 3.2 GREEN — in `backend/src/infrastructure/db/models.py`, add
+      `__table_args__` to `EventModel` with a partial unique `Index`:
+      ```python
+      __table_args__ = (
+          Index(
+              "uq_events_session_marker",
+              "session_id",
+              "event_type",
+              unique=True,
+              postgresql_where=text(
+                  "event_type IN ('session.evaluation_triggered', 'session.failed')"
+              ),
+          ),
+      )
+      ```
+      Import `Index` and `text` from `sqlalchemy`. The predicate string MUST
+      exactly match the migration's (section 5) for both to describe the same
+      constraint. Run pytest, confirm 3.1 passes.
+
+## 4. Repository — idempotent marker append
+
+- [x] 4.1 RED — `backend/tests/test_governance_repository.py`: add
+      `test_append_marker_event_persists_a_single_row` — given a session
+      already `ENDED` (via `save_session`), call
+      `repo.append_marker_event(event)` for a
+      `SESSION_EVALUATION_TRIGGERED` event, commit, and assert
+      `repo.get_session(...)` reloads it among the session's events with the
+      expected `sequence_number`. Confirm it fails (`append_marker_event` not
+      implemented on `SqlAlchemyGovernanceRepository` yet — only the Protocol
+      stub from 2.2 exists).
+- [x] 4.2 RED (idempotency) — same file: add
+      `test_append_marker_event_is_idempotent_on_conflict` — call
+      `repo.append_marker_event(event)` twice with the same `session_id` +
+      `event_type` (same or different `event_id`), commit, and assert only
+      one row exists for that `(session_id, event_type)` pair. Confirm it
+      fails until 4.3 lands (also depends on 3.2's index existing).
+      _Spec: "Idempotent marker events" — "Evaluation task retry does not
+      duplicate the marker"._
+- [x] 4.3 RED (no session rewrite) — same file: add a test that calls
+      `append_marker_event` on an `ENDED` session's marker event and asserts
+      the session's `status`/`ended_at` are unchanged after reload (proving
+      the repo method does not call `save_session`/`merge`). This can be
+      folded into 4.1's assertions if simpler.
+- [x] 4.4 GREEN — implement `append_marker_event` on
+      `SqlAlchemyGovernanceRepository`
+      (`backend/src/infrastructure/repositories/governance_repository.py`)
+      per the design: `pg_insert(EventModel).values(**_event_values(event))
+      .on_conflict_do_nothing(index_elements=["session_id", "event_type"],
+      index_where=EventModel.event_type.in_([EventType.SESSION_EVALUATION_TRIGGERED.value,
+      EventType.SESSION_FAILED.value]))`, then `await
+      self._session.execute(stmt)`. Reuse the existing `_event_values`
+      helper. Do NOT call `save_session` or touch `SessionModel`. Run pytest,
+      confirm 4.1-4.3 pass.
+- [x] 4.5 REFACTOR (if needed).
+
+## 5. Migration — partial unique index (DB-authoritative, out-of-band deploy)
+
+- [x] 5.1 Create `backend/alembic/versions/<hash>_add_session_marker_uniqueness.py`
+      with `down_revision` set to the head confirmed in step 0.1 (expected
+      `8e3c03e687de`). `upgrade()` creates
+      `uq_events_session_marker` on `events(session_id, event_type)` with
+      `postgresql_where` matching **exactly** the same predicate string used
+      in 3.2's ORM mirror (`event_type IN ('session.evaluation_triggered',
+      'session.failed')`). `downgrade()` drops the index. No test runs this
+      migration directly (tests use `create_all`), so verify by inspection
+      that the predicate strings in 3.2 and 5.1 are byte-identical.
+- [x] 5.2 Document the out-of-band deploy caveat inline as a migration
+      docstring/comment: the server starts without running migrations
+      (commit `36aa530`), so this index MUST be applied manually
+      (`alembic upgrade head` against the target DB) **before** this slice is
+      deployed, or the `ON CONFLICT` insert in `append_marker_event` will
+      raise in production.
+
+## 6. Celery task — emit the marker at evaluation start
+
+- [x] 6.1 RED — `backend/tests/test_build_evidences_task.py`: add
+      `test_task_records_evaluation_triggered_marker_before_building_evidences`
+      — given a session already `ENDED` (persisted via `save_session` +
+      commit, same pattern as existing tests in this file), call
+      `build_session_evidences_async(session_id)`, then reload the session
+      via the repository and assert exactly one
+      `SESSION_EVALUATION_TRIGGERED` event is present with `source ==
+      Source.PLATFORM` and a `sequence_number` continuing the prior events.
+      Confirm it fails (task does not emit the marker yet).
+      _Spec: "Evaluation-triggered marker at task start" — both scenarios._
+- [x] 6.2 RED (retry idempotency) — same file: add
+      `test_task_retry_does_not_duplicate_evaluation_triggered_marker` —
+      call `build_session_evidences_async(session_id)` twice for the same
+      session and assert only one `SESSION_EVALUATION_TRIGGERED` event
+      exists after both runs. Confirm it fails until 6.3 lands.
+      _Spec: "Idempotent marker events" — "Evaluation task retry does not
+      duplicate the marker"._
+- [x] 6.3 RED (failure-closed: marker survives evidence-build failure) —
+      same file: add a test that forces `build_evidences` (or
+      `add_evidences`/`add_report`) to raise after the marker step (monkeypatch
+      or a session with data that fails evidence building, if such a case
+      exists; otherwise monkeypatch `build_evidences` to raise), and asserts
+      the `SESSION_EVALUATION_TRIGGERED` event is still persisted (i.e. the
+      marker's own commit already landed) even though the task itself
+      raises/propagates. Confirm it fails until 6.4's own-commit ordering
+      lands.
+      _Design D5: marker survives evidence/scoring failure; Spec:
+      "Failure-closed event processing"._
+- [x] 6.4 GREEN — in `backend/src/infrastructure/celery/tasks.py`, inside
+      `build_session_evidences_async`, right after `get_session` returns a
+      non-`None` session and before `build_evidences(...)`:
+      ```python
+      await RecordEvaluationTriggered(repository).execute(
+          governance_session, datetime.now(UTC)
+      )
+      await session.commit()  # marker durable regardless of evidence outcome
+      ```
+      Import `RecordEvaluationTriggered` and `datetime, UTC`. Keep the
+      existing `evidences -> add_evidences -> report -> add_report ->
+      commit` sequence unchanged after this. Run pytest, confirm 6.1-6.3
+      pass and the existing tests in this file still pass.
+- [x] 6.5 Add an INFO log line on successful marker insert (per design
+      section 7): `"session.evaluation_triggered recorded: session={}"`.
+      No test required for log content unless the repo already asserts on
+      log capture elsewhere; keep consistent with existing logging style in
+      `tasks.py`/`vapi.py`.
+- [x] 6.6 REFACTOR (if needed).
+
+## 7. Documentation — coverage doc row update
+
+- [x] 7.1 Update `docs/design/vapi-event-coverage.md` row 12
+      (`session.evaluation_triggered`): change "Inferred by platform logic"
+      row's "Vapi webhook that currently produces it" from "None" to "N/A —
+      platform-emitted marker (not from a Vapi webhook)" and "Current status
+      / next step" from "Pending platform event when automatic evaluation
+      starts." to "Implemented. Appended post-terminal at the start of
+      `build_session_evidences_async`; see `RecordEvaluationTriggered` in
+      `backend/src/application/use_cases/record_evaluation_triggered.py` and
+      `Session.append_marker` in `backend/src/domain/session.py`."
+      _Spec: "Event coverage documentation stays current" — scenario
+      "Coverage doc reflects the new events" (evaluation_triggered half)._
+
+## 8. Verify (matches CI)
+
+- [x] 8.1 Run the focused test set first:
+      `cd backend && uv run pytest tests/test_domain_session.py tests/test_record_evaluation_triggered.py tests/test_governance_repository.py tests/test_build_evidences_task.py -v`
+      — confirm all new and existing tests are green.
+- [x] 8.2 Run the full CI-equivalent sequence from `backend/`:
+      - `uv run ruff check .`
+      - `uv run ruff format --check .`
+      - `uv run mypy src tests`
+      - `uv run pytest`
+      All green before considering the slice done.
+- [x] 8.3 Confirm no float `==` assertions were introduced in any new test
+      (`grep -n "== 0.0\|== 1.0" backend/tests/test_*.py` as a sanity check,
+      or eyeball the new test files) — use `pytest.approx(...)` for every
+      float comparison.
+- [x] 8.4 Confirm the changed file list matches Slice B's scope: `session.py`,
+      `governance_repository.py` (port + impl), `record_evaluation_triggered.py`
+      (new), `models.py`, the new Alembic revision, `tasks.py`,
+      `vapi-event-coverage.md`, plus the five test files touched above. No
+      Slice A files were re-touched beyond what section 3/4 requires.
+- [x] 8.5 Note in the PR description (per `cognitive-doc-design` /
+      `work-unit-commits` skills): this is PR-2 of 2, chained on the merged
+      Slice A PR (`stacked-to-main`); call out the **out-of-band migration
+      caveat** from section 5.2 explicitly as a deploy prerequisite.
+
+## Review Workload Forecast (Slice B)
+
+| Metric | Estimate |
+|---|---|
+| Files touched (prod) | 5 (`session.py`, `governance_repository.py` port, `governance_repository.py` impl, `record_evaluation_triggered.py` new, `models.py`, `tasks.py` — 6 counting the port/impl as the same file with two edits) |
+| Files touched (migration) | 1 (new Alembic revision) |
+| Files touched (docs) | 1 (`vapi-event-coverage.md`, one-row edit) |
+| Test files touched | 4 (`test_domain_session.py` extended, `test_record_evaluation_triggered.py` new, `test_governance_repository.py` extended, `test_build_evidences_task.py` extended) |
+| Estimated changed lines | ~220-320 (domain method ~35 lines; port +1 line; use case ~20 lines; repo method ~15 lines; ORM index ~12 lines; migration ~25 lines; task wiring ~10 lines; test additions dominate at ~150-200 lines given 3 idempotency/ordering scenarios) |
+| Stays under 400-line budget | Yes, with margin |
+| Chained PRs needed | No further split — this is already PR-2 of 2 in the design's chained plan; `stacked-to-main` on top of the merged Slice A |
+| Decision needed before apply | No — scope, file list, TDD order, and the ORM-mirror requirement (section 3, discovered during tasks review, not in the design's "optional" framing) are fully pinned; proceed directly to `sdd-apply` |

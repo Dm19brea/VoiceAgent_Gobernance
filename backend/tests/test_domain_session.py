@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from src.domain.enums import EventType, SessionStatus, Source
-from src.domain.exceptions import SessionClosedError
+from src.domain.exceptions import DomainError, SessionClosedError
 from src.domain.session import Session
 
 
@@ -70,3 +70,50 @@ def test_record_after_failed_rejected() -> None:
 
     with pytest.raises(SessionClosedError):
         session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, datetime.now(UTC), {})
+
+
+def test_append_marker_on_ended_session_continues_sequence_and_keeps_status() -> None:
+    session = _session()
+    ended_at = datetime.now(UTC)
+    session.record(EventType.SESSION_STARTED, Source.PLATFORM, ended_at, {})
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, ended_at, {})
+
+    event = session.append_marker(
+        EventType.SESSION_EVALUATION_TRIGGERED, Source.PLATFORM, datetime.now(UTC), {}
+    )
+
+    assert event.sequence_number == len(session.events)
+    assert event.sequence_number == 3
+    assert session.status is SessionStatus.ENDED
+    assert session.ended_at == ended_at
+
+
+def test_append_marker_on_failed_session_continues_sequence_and_keeps_status() -> None:
+    session = _session()
+    failed_at = datetime.now(UTC)
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, failed_at, {})
+
+    event = session.append_marker(
+        EventType.SESSION_EVALUATION_TRIGGERED, Source.PLATFORM, datetime.now(UTC), {}
+    )
+
+    assert event.sequence_number == 2
+    assert session.status is SessionStatus.FAILED
+    assert session.ended_at == failed_at
+
+
+def test_append_marker_on_active_session_rejected() -> None:
+    session = _session()
+
+    with pytest.raises(SessionClosedError):
+        session.append_marker(
+            EventType.SESSION_EVALUATION_TRIGGERED, Source.PLATFORM, datetime.now(UTC), {}
+        )
+
+
+def test_append_marker_rejects_non_marker_event_type() -> None:
+    session = _session()
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+
+    with pytest.raises(DomainError):
+        session.append_marker(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})

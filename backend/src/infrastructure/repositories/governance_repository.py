@@ -71,6 +71,26 @@ class SqlAlchemyGovernanceRepository:
             )
             await self._session.execute(stmt)
 
+    async def append_marker_event(self, event: Event) -> None:
+        """Idempotently append a post-terminal marker event.
+
+        Never touches the ``sessions`` row (no ``save_session``/``merge``): the
+        session is already closed, so only the ``events`` insert matters. The
+        partial unique index on (session_id, event_type) makes a retried
+        append a no-op via ``ON CONFLICT ... DO NOTHING``.
+        """
+        stmt = (
+            pg_insert(EventModel)
+            .values(**_event_values(event))
+            .on_conflict_do_nothing(
+                index_elements=["session_id", "event_type"],
+                index_where=EventModel.event_type.in_(
+                    [EventType.SESSION_EVALUATION_TRIGGERED.value, EventType.SESSION_FAILED.value]
+                ),
+            )
+        )
+        await self._session.execute(stmt)
+
     async def add_evidences(self, evidences: list[Evidence]) -> None:
         # Evidences are rebuilt per session (the webhook can fire more than once),
         # so replace any existing ones for the affected sessions to stay idempotent.
