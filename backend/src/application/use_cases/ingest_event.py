@@ -27,9 +27,17 @@ class IngestEvent:
             )
             await self._repo.add_agent(agent)
 
-        session = await self._repo.get_session(command.call_id)
+        session = await self._repo.get_session_for_update(command.call_id)
         if session is None:
             session = Session.open(command.call_id, agent.agent_id, command.timestamp)
+            if not await self._repo.create_session(session):
+                session = await self._repo.get_session_for_update(command.call_id)
+                if session is None:
+                    return
+                if command.event_type is EventType.SESSION_STARTED:
+                    return
+                if session.status is not SessionStatus.ACTIVE:
+                    return
         elif command.event_type is EventType.SESSION_STARTED:
             return  # idempotent: duplicate session start
         elif session.status is not SessionStatus.ACTIVE:

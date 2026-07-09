@@ -14,6 +14,7 @@ class InMemoryGovernanceRepository:
         self.evidences: dict[str, list[Evidence]] = {}  # keyed by session_id
         self.reports: dict[str, EvaluationReport] = {}  # keyed by session_id
         self.marker_events: list[Event] = []
+        self.locked_session_ids: list[str] = []
 
     async def get_agent_by_assistant_id(self, assistant_id: str) -> Agent | None:
         return self.agents.get(assistant_id)
@@ -24,8 +25,27 @@ class InMemoryGovernanceRepository:
     async def get_session(self, session_id: str) -> Session | None:
         return self.sessions.get(session_id)
 
+    async def get_session_for_update(self, session_id: str) -> Session | None:
+        self.locked_session_ids.append(session_id)
+        return self.sessions.get(session_id)
+
+    async def create_session(self, session: Session) -> bool:
+        if session.session_id in self.sessions:
+            return False
+        self.sessions[session.session_id] = session
+        return True
+
     async def save_session(self, session: Session) -> None:
         self.sessions[session.session_id] = session
+
+    async def append_event(self, event: Event) -> bool:
+        session = self.sessions.get(event.session_id)
+        if session is None:
+            return False
+        if any(existing.event_id == event.event_id for existing in session.events):
+            return False
+        session.events.append(event)
+        return True
 
     async def append_marker_event(self, event: Event) -> None:
         self.marker_events.append(event)

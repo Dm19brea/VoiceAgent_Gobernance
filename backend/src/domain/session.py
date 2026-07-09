@@ -8,6 +8,13 @@ from src.domain.event import Event
 from src.domain.exceptions import DomainError, SessionClosedError
 
 _MARKER_EVENTS = frozenset({EventType.SESSION_EVALUATION_TRIGGERED})
+_SYSTEM_OBSERVATION_EVENTS = frozenset(
+    {
+        EventType.SYSTEM_LATENCY_MEASURED,
+        EventType.SYSTEM_ERROR,
+        EventType.SYSTEM_FLAG_RAISED,
+    }
+)
 
 
 @dataclass
@@ -87,4 +94,30 @@ class Session:
         )
         self.events.append(event)
 
+        return event
+
+    def append_system_observation(
+        self,
+        event_type: EventType,
+        source: Source,
+        timestamp: datetime,
+        payload: dict[str, Any],
+        event_id: UUID | None = None,
+    ) -> Event:
+        """Append an allowed post-terminal system observation without lifecycle mutation."""
+        if self.status is SessionStatus.ACTIVE:
+            raise SessionClosedError(f"Session {self.session_id} is still active")
+        if event_type not in _SYSTEM_OBSERVATION_EVENTS:
+            raise DomainError(f"{event_type} is not a valid system observation")
+
+        event = Event(
+            session_id=self.session_id,
+            event_type=event_type,
+            source=source,
+            sequence_number=len(self.events) + 1,
+            timestamp=timestamp,
+            payload=payload,
+            **({"event_id": event_id} if event_id is not None else {}),
+        )
+        self.events.append(event)
         return event

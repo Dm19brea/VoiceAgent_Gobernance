@@ -1,7 +1,8 @@
+from dataclasses import replace
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,8 +48,35 @@ class SqlAlchemyGovernanceRepository:
         await self._session.flush()
 
     async def get_session(self, session_id: str) -> Session | None:
+        return await self._load_session(session_id, for_update=False)
+
+    async def get_session_for_update(self, session_id: str) -> Session | None:
+        """Load a session under a row lock before assigning another sequence."""
+        return await self._load_session(session_id, for_update=True)
+
+    async def create_session(self, session: Session) -> bool:
+        """Create a session once, letting concurrent starters converge safely."""
+        stmt = (
+            pg_insert(SessionModel)
+            .values(
+                session_id=session.session_id,
+                agent_id=session.agent_id,
+                status=session.status.value,
+                started_at=session.started_at,
+                ended_at=session.ended_at,
+            )
+            .on_conflict_do_nothing(index_elements=["session_id"])
+            .returning(SessionModel.session_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
+    async def _load_session(self, session_id: str, *, for_update: bool) -> Session | None:
+        statement = select(SessionModel).where(SessionModel.session_id == session_id)
+        if for_update:
+            statement = statement.with_for_update()
         row = await self._session.scalar(
-            select(SessionModel).where(SessionModel.session_id == session_id)
+            statement
         )
         if row is None:
             return None
@@ -64,12 +92,18 @@ class SqlAlchemyGovernanceRepository:
     async def save_session(self, session: Session) -> None:
         await self._session.merge(_to_session_model(session))
         for event in session.events:
-            stmt = (
-                pg_insert(EventModel)
-                .values(**_event_values(event))
-                .on_conflict_do_nothing(index_elements=["event_id"])
-            )
-            await self._session.execute(stmt)
+            await self.append_event(event)
+
+    async def append_event(self, event: Event) -> bool:
+        """Insert one canonical event idempotently by deterministic event identity."""
+        stmt = (
+            pg_insert(EventModel)
+            .values(**_event_values(event))
+            .on_conflict_do_nothing(index_elements=["event_id"])
+            .returning(EventModel.event_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none() is not None
 
     async def append_marker_event(self, event: Event) -> None:
         """Idempotently append a post-terminal marker event.
@@ -79,9 +113,23 @@ class SqlAlchemyGovernanceRepository:
         partial unique index on (session_id, event_type) makes a retried
         append a no-op via ``ON CONFLICT ... DO NOTHING``.
         """
+        await self._session.scalar(
+            select(SessionModel)
+            .where(SessionModel.session_id == event.session_id)
+            .with_for_update()
+        )
+        max_sequence = (
+            await self._session.scalar(
+                select(func.coalesce(func.max(EventModel.sequence_number), 0)).where(
+                    EventModel.session_id == event.session_id
+                )
+            )
+        )
+        next_sequence = (max_sequence or 0) + 1
+        serialized_event = replace(event, sequence_number=next_sequence)
         stmt = (
             pg_insert(EventModel)
-            .values(**_event_values(event))
+            .values(**_event_values(serialized_event))
             .on_conflict_do_nothing(
                 index_elements=["session_id", "event_type"],
                 index_where=EventModel.event_type.in_(
