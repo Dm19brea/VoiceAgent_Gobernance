@@ -37,4 +37,10 @@ def _to_dict(snapshot: ActiveSessionSnapshot) -> dict[str, Any]:
         "agent_id": str(snapshot.agent_id),
         "status": snapshot.status,
         "started_at": snapshot.started_at.isoformat(),
+        "speaking_role": snapshot.speaking_role,
+        "last_interruption_at": (
+            snapshot.last_interruption_at.isoformat()
+            if snapshot.last_interruption_at is not None
+            else None
+        ),
     }
