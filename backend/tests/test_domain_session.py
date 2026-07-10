@@ -117,3 +117,45 @@ def test_append_marker_rejects_non_marker_event_type() -> None:
 
     with pytest.raises(DomainError):
         session.append_marker(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        EventType.SYSTEM_LATENCY_MEASURED,
+        EventType.SYSTEM_ERROR,
+        EventType.SYSTEM_FLAG_RAISED,
+    ],
+)
+def test_append_system_observation_on_closed_session_keeps_lifecycle(
+    event_type: EventType,
+) -> None:
+    session = _session()
+    ended_at = datetime.now(UTC)
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, ended_at, {})
+
+    event = session.append_system_observation(event_type, Source.SYSTEM, datetime.now(UTC), {})
+
+    assert event.event_type is event_type
+    assert event.sequence_number == 2
+    assert session.status is SessionStatus.ENDED
+    assert session.ended_at == ended_at
+
+
+def test_append_system_observation_rejects_non_system_observation_type() -> None:
+    session = _session()
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, datetime.now(UTC), {})
+
+    with pytest.raises(DomainError):
+        session.append_system_observation(
+            EventType.SYSTEM_WARNING, Source.SYSTEM, datetime.now(UTC), {}
+        )
+
+
+def test_append_system_observation_rejects_active_session() -> None:
+    session = _session()
+
+    with pytest.raises(SessionClosedError):
+        session.append_system_observation(
+            EventType.SYSTEM_ERROR, Source.SYSTEM, datetime.now(UTC), {}
+        )

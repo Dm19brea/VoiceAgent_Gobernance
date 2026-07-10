@@ -1,7 +1,12 @@
+import asyncio
 from datetime import UTC, datetime
+from typing import cast
+from uuid import uuid4
 
-from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
+import pytest
+from sqlalchemy import Table, UniqueConstraint, insert, text
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.domain.agent import Agent
 from src.domain.enums import EventType, SessionStatus, Source
@@ -169,3 +174,141 @@ async def test_repository_persists_and_reloads_session(db_session: AsyncSession)
     resolved = await repo.get_agent_by_assistant_id("asst-x")
     assert resolved is not None
     assert resolved.agent_id == agent.agent_id
+
+
+async def test_unique_session_sequence_prevents_competing_canonical_appends(
+    db_session: AsyncSession,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    event_table = cast(Table, EventModel.__table__)
+    assert any(
+        isinstance(constraint, UniqueConstraint) and constraint.name == "uq_events_session_sequence"
+        for constraint in event_table.constraints
+    )
+    constraint_exists = await db_session.scalar(
+        text("SELECT to_regclass('uq_events_session_sequence') IS NOT NULL")
+    )
+    if not constraint_exists:
+        await db_session.execute(
+            text(
+                "ALTER TABLE events ADD CONSTRAINT uq_events_session_sequence "
+                "UNIQUE (session_id, sequence_number)"
+            )
+        )
+        await db_session.commit()
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-sequence")
+    await repo.add_agent(agent)
+    session = Session.open("call-sequence", agent.agent_id, datetime.now(UTC))
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    await repo.save_session(session)
+    await db_session.commit()
+
+    first = Event(
+        event_id=uuid4(),
+        session_id=session.session_id,
+        event_type=EventType.SYSTEM_ERROR,
+        source=Source.SYSTEM,
+        sequence_number=2,
+        timestamp=datetime.now(UTC),
+        payload={"identity": "first"},
+    )
+    second = Event(
+        event_id=uuid4(),
+        session_id=session.session_id,
+        event_type=EventType.SYSTEM_FLAG_RAISED,
+        source=Source.SYSTEM,
+        sequence_number=2,
+        timestamp=datetime.now(UTC),
+        payload={"identity": "second"},
+    )
+    assert await repo.append_event(first) is True
+    await db_session.commit()
+
+    with pytest.raises(IntegrityError):
+        await repo.append_event(second)
+        await db_session.commit()
+    await db_session.rollback()
+
+
+async def test_append_event_is_idempotent_for_a_duplicate_canonical_identity(
+    db_session: AsyncSession,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-event-identity")
+    await repo.add_agent(agent)
+    session = Session.open("call-event-identity", agent.agent_id, datetime.now(UTC))
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    await repo.save_session(session)
+    await db_session.commit()
+
+    observation = Event(
+        event_id=uuid4(),
+        session_id=session.session_id,
+        event_type=EventType.SYSTEM_ERROR,
+        source=Source.SYSTEM,
+        sequence_number=2,
+        timestamp=datetime.now(UTC),
+        payload={"identity": "stable-observation"},
+    )
+
+    assert await repo.append_event(observation) is True
+    assert await repo.append_event(observation) is False
+    await db_session.commit()
+
+    reloaded = await repo.get_session(session.session_id)
+    assert reloaded is not None
+    assert [event.event_id for event in reloaded.events].count(observation.event_id) == 1
+    assert reloaded.status is SessionStatus.ENDED
+
+
+async def test_session_lock_serializes_system_and_marker_sequence_assignment(
+    db_session: AsyncSession,
+) -> None:
+    """A second canonical append waits for the session lock and gets the next sequence."""
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-lock")
+    await repo.add_agent(agent)
+    session = Session.open("call-lock", agent.agent_id, datetime.now(UTC))
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    await repo.save_session(session)
+    await db_session.commit()
+
+    engine = db_session.bind
+    assert isinstance(engine, AsyncEngine)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as first_db:
+        first_repo = SqlAlchemyGovernanceRepository(first_db)
+        locked = await first_repo.get_session_for_update(session.session_id)
+        assert locked is not None
+        observation = locked.append_system_observation(
+            EventType.SYSTEM_ERROR,
+            Source.SYSTEM,
+            datetime.now(UTC),
+            {"identity": "serialized-error"},
+            event_id=uuid4(),
+        )
+        assert await first_repo.append_event(observation) is True
+
+        async def append_marker_after_lock() -> None:
+            async with maker() as second_db:
+                second_repo = SqlAlchemyGovernanceRepository(second_db)
+                reloaded = await second_repo.get_session_for_update(session.session_id)
+                assert reloaded is not None
+                marker = reloaded.append_marker(
+                    EventType.SESSION_EVALUATION_TRIGGERED,
+                    Source.PLATFORM,
+                    datetime.now(UTC),
+                    {},
+                )
+                await second_repo.append_marker_event(marker)
+                await second_db.commit()
+
+        append_task = asyncio.create_task(append_marker_after_lock())
+        await asyncio.sleep(0.05)
+        assert not append_task.done()
+        await first_db.commit()
+        await append_task
+
+    reloaded = await repo.get_session(session.session_id)
+    assert reloaded is not None
+    assert [event.sequence_number for event in reloaded.events] == [1, 2, 3]

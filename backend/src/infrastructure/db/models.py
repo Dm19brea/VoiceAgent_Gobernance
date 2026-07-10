@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, func, text
+from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -57,6 +57,7 @@ class EventModel(Base):
 
     __tablename__ = "events"
     __table_args__ = (
+        UniqueConstraint("session_id", "sequence_number", name="uq_events_session_sequence"),
         # Enforces at-most-one row per (session_id, event_type) for the
         # post-terminal marker events, so a retried/duplicate append is a
         # DB-level no-op via ON CONFLICT ... DO NOTHING. This predicate MUST
