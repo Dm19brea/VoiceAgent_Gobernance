@@ -24,11 +24,11 @@ This document tracks how each canonical `EventType` from `backend/src/domain/enu
 | `tool.failed` | No | Yes | None | Pending. Requires tool execution error handling. |
 | `tool.timeout` | No | Yes | None | Pending. Requires timeout instrumentation. |
 | `tool.retry` | No | Yes | None | Pending. Requires retry instrumentation. |
-| `system.latency_measured` | No | Yes | None | Pending. Requires latency measurement in the platform. |
+| `system.latency_measured` | No | Yes | N/A — platform-recorded webhook and evaluation timestamps | Implemented. Webhook ingestion and `evidence_evaluation` record local platform durations only; neither claims provider-side latency. |
 | `system.model_invocation` | Yes | No | `model-output` | Implemented. |
-| `system.error` | No | Yes | None | Pending. Requires platform/provider error classification. |
+| `system.error` | Yes | Yes | `end-of-call-report` for classified terminal failures | Implemented. A classified terminal `endedReason` creates one correlated error alongside, never instead of, `session.failed`; recoverable `evidence_evaluation` failures create one idempotent platform error without lifecycle mutation. |
 | `system.warning` | Yes | Yes | `transfer-update`; `language-change-detected`; `hang`; `chat.*`; `session.*` | Implemented for broad provider warnings. Next: refine if these become too noisy. |
-| `system.flag_raised` | No | Yes | None | Pending. Requires governance/risk rule detection. |
+| `system.flag_raised` | Yes | Yes | `transcript` with `detectedThreats`; N/A for accepted evaluation findings | Implemented. Normalized Vapi threats and accepted deterministic-evaluation findings are retry-safe flags with source, code, reason, and report provenance. |
 
 ## Mapping rules to preserve
 
@@ -39,4 +39,4 @@ This document tracks how each canonical `EventType` from `backend/src/domain/enu
 
 ## Next step
 
-Map and register the pending platform-inferred events without inventing semantics from Vapi payloads. The next implementation slice should define where each pending event is emitted in the platform lifecycle, then add tests before production code.
+The remaining pending taxonomy entries are conversation and tool capabilities. System coverage is complete: raw Vapi landing remains the source of truth, while platform-derived observations retain explicit provenance and retry-safe identities.
