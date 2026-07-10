@@ -152,7 +152,19 @@ def test_append_system_observation_rejects_non_system_observation_type() -> None
         )
 
 
-def test_append_system_observation_rejects_active_session() -> None:
+def test_append_active_flag_observation_keeps_lifecycle_unchanged() -> None:
+    session = _session()
+
+    event = session.append_system_observation(
+        EventType.SYSTEM_FLAG_RAISED, Source.SYSTEM, datetime.now(UTC), {}
+    )
+
+    assert event.event_type is EventType.SYSTEM_FLAG_RAISED
+    assert session.status is SessionStatus.ACTIVE
+    assert session.ended_at is None
+
+
+def test_append_system_error_rejects_active_session() -> None:
     session = _session()
 
     with pytest.raises(SessionClosedError):

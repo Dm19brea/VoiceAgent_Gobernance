@@ -2,6 +2,7 @@ from src.application.commands import IngestEventCommand
 from src.application.ports.governance_repository import GovernanceRepository
 from src.domain.agent import Agent
 from src.domain.enums import AgentStatus, EventType, SessionStatus
+from src.domain.event import Event
 from src.domain.session import Session
 
 
@@ -16,7 +17,7 @@ class IngestEvent:
     def __init__(self, repository: GovernanceRepository) -> None:
         self._repo = repository
 
-    async def execute(self, command: IngestEventCommand) -> None:
+    async def execute(self, command: IngestEventCommand) -> Event | None:
         agent = await self._repo.get_agent_by_assistant_id(command.assistant_id)
         if agent is None:
             agent = Agent(
@@ -33,15 +34,18 @@ class IngestEvent:
             if not await self._repo.create_session(session):
                 session = await self._repo.get_session_for_update(command.call_id)
                 if session is None:
-                    return
+                    return None
                 if command.event_type is EventType.SESSION_STARTED:
-                    return
+                    return None
                 if session.status is not SessionStatus.ACTIVE:
-                    return
+                    return None
         elif command.event_type is EventType.SESSION_STARTED:
-            return  # idempotent: duplicate session start
+            return None  # idempotent: duplicate session start
         elif session.status is not SessionStatus.ACTIVE:
-            return  # idempotent: session already closed
+            return None  # idempotent: session already closed
 
-        session.record(command.event_type, command.source, command.timestamp, command.payload)
+        event = session.record(
+            command.event_type, command.source, command.timestamp, command.payload
+        )
         await self._repo.save_session(session)
+        return event
