@@ -72,7 +72,7 @@ class _FailingStore:
 
 
 class _FakeRepository:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session | None = None) -> None:
         self._session = session
 
     async def get_session(self, session_id: str) -> Session | None:
@@ -94,7 +94,9 @@ async def test_turn_started_with_agent_source_sets_speaking_role_agent() -> None
     store = _FakeStore()
 
     await update_active_state(
-        store, repository=None, command=_command(EventType.CONVERSATION_TURN_STARTED, Source.AGENT)
+        store,
+        repository=_FakeRepository(),
+        command=_command(EventType.CONVERSATION_TURN_STARTED, Source.AGENT),
     )
 
     assert store.speaking_role_calls == [("call-a", "agent")]
@@ -104,7 +106,9 @@ async def test_turn_started_with_user_source_sets_speaking_role_user() -> None:
     store = _FakeStore()
 
     await update_active_state(
-        store, repository=None, command=_command(EventType.CONVERSATION_TURN_STARTED, Source.USER)
+        store,
+        repository=_FakeRepository(),
+        command=_command(EventType.CONVERSATION_TURN_STARTED, Source.USER),
     )
 
     assert store.speaking_role_calls == [("call-a", "user")]
@@ -114,7 +118,9 @@ async def test_turn_ended_clears_speaking_role_regardless_of_source() -> None:
     store = _FakeStore()
 
     await update_active_state(
-        store, repository=None, command=_command(EventType.CONVERSATION_TURN_ENDED, Source.AGENT)
+        store,
+        repository=_FakeRepository(),
+        command=_command(EventType.CONVERSATION_TURN_ENDED, Source.AGENT),
     )
 
     assert store.speaking_role_calls == [("call-a", None)]
@@ -124,7 +130,7 @@ async def test_interruption_detected_marks_interruption_and_leaves_speaking_role
     store = _FakeStore()
     command = _command(EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.USER)
 
-    await update_active_state(store, repository=None, command=command)
+    await update_active_state(store, repository=_FakeRepository(), command=command)
 
     assert store.interruption_calls == [("call-a", command.timestamp)]
     assert store.speaking_role_calls == []
@@ -220,7 +226,7 @@ async def test_turn_started_with_unrecognized_source_does_not_clobber_speaking_r
 
     await update_active_state(
         store,
-        repository=None,
+        repository=_FakeRepository(),
         command=_command(EventType.CONVERSATION_TURN_STARTED, Source.PLATFORM),
     )
 
@@ -232,7 +238,9 @@ async def test_turn_ended_with_no_prior_turn_started_still_clears_cleanly() -> N
     store = _FakeStore()
 
     await update_active_state(
-        store, repository=None, command=_command(EventType.CONVERSATION_TURN_ENDED, Source.USER)
+        store,
+        repository=_FakeRepository(),
+        command=_command(EventType.CONVERSATION_TURN_ENDED, Source.USER),
     )
 
     assert store.speaking_role_calls == [("call-a", None)]

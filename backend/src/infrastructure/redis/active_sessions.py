@@ -6,14 +6,15 @@ ephemeral: the source of truth is Postgres; this only powers live supervision (M
 
 import json
 from datetime import datetime
+from typing import Protocol
 from uuid import UUID
 
 import redis.asyncio as redis
 
 from src.application.commands import IngestEventCommand
 from src.application.ports.active_sessions import ActiveSessionSnapshot, ActiveSessionStore
-from src.application.ports.governance_repository import GovernanceRepository
 from src.domain.enums import EventType, Source
+from src.domain.session import Session
 from src.infrastructure.config import settings
 
 _HASH_KEY = "active_sessions"
@@ -151,9 +152,15 @@ def get_active_session_store() -> RedisActiveSessionStore:
     return _store
 
 
+class _SessionReader(Protocol):
+    """Minimal read port: update_active_state only needs to load a session."""
+
+    async def get_session(self, session_id: str) -> Session | None: ...
+
+
 async def update_active_state(
     store: ActiveSessionStore,
-    repository: GovernanceRepository,
+    repository: _SessionReader,
     command: IngestEventCommand,
 ) -> None:
     """Reflect a just-ingested event in the active-session store (R7)."""
