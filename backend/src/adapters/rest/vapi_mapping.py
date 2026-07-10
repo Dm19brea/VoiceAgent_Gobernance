@@ -1,7 +1,9 @@
+import hashlib
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
-from src.application.commands import IngestEventCommand
+from src.application.commands import IngestEventCommand, SystemObservationCommand
 from src.domain.enums import EventType, Source
 
 _TOOL_CALL_TYPES = {
@@ -10,8 +12,6 @@ _TOOL_CALL_TYPES = {
     "knowledge-base-request",
     "phone-call-control",
     "voice-input",
-    "voice-request",
-    "call.endpointing.request",
 }
 _SYSTEM_WARNING_TYPES = {
     "transfer-update",
@@ -111,6 +111,121 @@ def map_vapi_event(webhook: dict[str, Any]) -> IngestEventCommand | None:
         timestamp=_timestamp(message),
         payload=payload,
     )
+
+
+def map_vapi_system_observations(
+    webhook: dict[str, Any], raw_event_id: UUID
+) -> list[SystemObservationCommand]:
+    """Translate safe Vapi derivatives to retry-safe system observations.
+
+    The raw event id is retained solely as provenance.  Stable provider fields
+    make up ``identity_fields`` so a Vapi redelivery creates the same canonical
+    event even though it lands as a new raw row.
+    """
+    message: dict[str, Any] = webhook.get("message") or {}
+    vapi_type = message.get("type")
+    call: dict[str, Any] = message.get("call") or {}
+    call_id = call.get("id")
+    if not isinstance(vapi_type, str) or not isinstance(call_id, str) or not call_id:
+        return []
+
+    if vapi_type == "end-of-call-report":
+        return _terminal_error_observations(message, call_id, raw_event_id)
+    if vapi_type == "transcript":
+        return _threat_observations(message, call_id, raw_event_id)
+    return []
+
+
+def _terminal_error_observations(
+    message: dict[str, Any], call_id: str, raw_event_id: UUID
+) -> list[SystemObservationCommand]:
+    ended_reason = message.get("endedReason")
+    if classify_terminal_event(ended_reason) is not EventType.SESSION_FAILED:
+        return []
+    if not isinstance(ended_reason, str) or not ended_reason:
+        return []
+
+    report = _normalise_report(message)
+    identity_report = {
+        key: value for key, value in report.items() if key != "ended_reason" and value is not None
+    }
+    return [
+        SystemObservationCommand(
+            session_id=call_id,
+            event_type=EventType.SYSTEM_ERROR,
+            source=Source.SYSTEM,
+            timestamp=_timestamp(message),
+            identity_fields={
+                "call_id": call_id,
+                "classification": "terminal_failure",
+                "ended_reason": ended_reason.strip().lower(),
+                "report": identity_report,
+            },
+            raw_event_id=raw_event_id,
+            payload={
+                "classification": "terminal_failure",
+                "reason": ended_reason,
+                "report": report,
+                "provider": "vapi",
+            },
+        )
+    ]
+
+
+def _threat_observations(
+    message: dict[str, Any], call_id: str, raw_event_id: UUID
+) -> list[SystemObservationCommand]:
+    transcript = message.get("transcript")
+    transcript_type = message.get("transcriptType")
+    if (
+        not isinstance(transcript, str)
+        or not transcript.strip()
+        or not isinstance(transcript_type, str)
+    ):
+        return []
+
+    transcript_hash = hashlib.sha256(transcript.strip().encode("utf-8")).hexdigest()
+    observations: list[SystemObservationCommand] = []
+    for code, reason in _normalise_threats(message.get("detectedThreats")):
+        observations.append(
+            SystemObservationCommand(
+                session_id=call_id,
+                event_type=EventType.SYSTEM_FLAG_RAISED,
+                source=Source.SYSTEM,
+                timestamp=_timestamp(message),
+                identity_fields={
+                    "call_id": call_id,
+                    "code": code,
+                    "reason": reason,
+                    "transcript_sha256": transcript_hash,
+                    "transcript_type": transcript_type.strip().lower(),
+                },
+                raw_event_id=raw_event_id,
+                payload={
+                    "code": code,
+                    "reason": reason,
+                    "provider": "vapi",
+                    "transcript_type": transcript_type,
+                },
+            )
+        )
+    return observations
+
+
+def _normalise_threats(raw_threats: object) -> list[tuple[str, str]]:
+    if not isinstance(raw_threats, list):
+        return []
+    findings: set[tuple[str, str]] = set()
+    for threat in raw_threats:
+        if not isinstance(threat, dict):
+            continue
+        raw_code, raw_reason = threat.get("code"), threat.get("reason")
+        if not isinstance(raw_code, str) or not isinstance(raw_reason, str):
+            continue
+        code, reason = raw_code.strip().lower(), raw_reason.strip()
+        if code and reason:
+            findings.add((code, reason))
+    return sorted(findings)
 
 
 def _normalise_report(message: dict[str, Any]) -> dict[str, Any]:

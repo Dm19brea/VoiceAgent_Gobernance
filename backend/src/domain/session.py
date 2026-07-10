@@ -104,8 +104,13 @@ class Session:
         payload: dict[str, Any],
         event_id: UUID | None = None,
     ) -> Event:
-        """Append an allowed post-terminal system observation without lifecycle mutation."""
-        if self.status is SessionStatus.ACTIVE:
+        """Append an allowed system observation without lifecycle mutation.
+
+        Threat flags are valid while a call is active because Vapi delivers
+        transcripts during the conversation. Latency and error observations
+        remain post-terminal to preserve their completed-operation semantics.
+        """
+        if self.status is SessionStatus.ACTIVE and event_type is not EventType.SYSTEM_FLAG_RAISED:
             raise SessionClosedError(f"Session {self.session_id} is still active")
         if event_type not in _SYSTEM_OBSERVATION_EVENTS:
             raise DomainError(f"{event_type} is not a valid system observation")

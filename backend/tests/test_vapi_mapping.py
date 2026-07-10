@@ -64,8 +64,6 @@ def _webhook(message: dict[str, Any]) -> dict[str, Any]:
         ({"type": "knowledge-base-request"}, EventType.TOOL_CALLED, Source.TOOL),
         ({"type": "phone-call-control"}, EventType.TOOL_CALLED, Source.TOOL),
         ({"type": "voice-input"}, EventType.TOOL_CALLED, Source.TOOL),
-        ({"type": "voice-request"}, EventType.TOOL_CALLED, Source.TOOL),
-        ({"type": "call.endpointing.request"}, EventType.TOOL_CALLED, Source.TOOL),
         ({"type": "model-output"}, EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM),
         ({"type": "transfer-update"}, EventType.SYSTEM_WARNING, Source.SYSTEM),
         ({"type": "language-change-detected"}, EventType.SYSTEM_WARNING, Source.SYSTEM),
@@ -247,3 +245,92 @@ def test_end_of_call_report_with_normal_reason_still_maps_to_session_ended() -> 
 
     assert result is not None
     assert result.event_type is EventType.SESSION_ENDED
+
+
+def test_maps_terminal_failure_to_one_stable_system_error_intent() -> None:
+    from uuid import UUID
+
+    from src.adapters.rest.vapi_mapping import map_vapi_system_observations
+
+    raw_event_id = UUID("12345678-1234-5678-1234-567812345678")
+    webhook = _webhook(
+        {
+            "type": "end-of-call-report",
+            "endedReason": "pipeline-error-openai-llm-failed",
+            "durationSeconds": 12,
+            "summary": "Provider pipeline failed",
+        }
+    )
+
+    observations = map_vapi_system_observations(webhook, raw_event_id)
+
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation.event_type is EventType.SYSTEM_ERROR
+    assert observation.raw_event_id == raw_event_id
+    assert observation.identity_fields == {
+        "call_id": "call-1",
+        "classification": "terminal_failure",
+        "ended_reason": "pipeline-error-openai-llm-failed",
+        "report": {
+            "duration_seconds": 12,
+            "summary": "Provider pipeline failed",
+        },
+    }
+    assert observation.payload["reason"] == "pipeline-error-openai-llm-failed"
+
+
+def test_maps_each_normalized_transcript_threat_to_a_stable_flag_intent() -> None:
+    from uuid import UUID
+
+    from src.adapters.rest.vapi_mapping import map_vapi_system_observations
+
+    webhook = _webhook(
+        {
+            "type": "transcript",
+            "transcriptType": "final",
+            "transcript": "I will hurt you",
+            "detectedThreats": [
+                {"code": " violence ", "reason": " Threat of harm "},
+                {"code": "violence", "reason": "Threat of harm"},
+                {"code": "self_harm", "reason": "Self harm mention"},
+            ],
+        }
+    )
+
+    observations = map_vapi_system_observations(
+        webhook, UUID("12345678-1234-5678-1234-567812345678")
+    )
+
+    assert [(item.payload["code"], item.payload["reason"]) for item in observations] == [
+        ("self_harm", "Self harm mention"),
+        ("violence", "Threat of harm"),
+    ]
+    assert observations[0].identity_fields is not None
+    assert observations[0].identity_fields["transcript_sha256"] != "I will hurt you"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {"type": "voice-request"},
+        {"type": "call.endpointing.request"},
+        {"type": "unknown-type"},
+        {"type": "transcript", "detectedThreats": [{"code": "", "reason": ""}]},
+    ],
+)
+def test_specialized_or_unstable_messages_have_no_system_observation_intent(
+    message: dict[str, Any],
+) -> None:
+    from uuid import UUID
+
+    from src.adapters.rest.vapi_mapping import map_vapi_system_observations
+
+    assert map_vapi_system_observations(_webhook(message), UUID(int=1)) == []
+
+
+@pytest.mark.parametrize(
+    "message", [{"type": "voice-request"}, {"type": "call.endpointing.request"}]
+)
+def test_specialized_messages_stay_raw_only(message: dict[str, Any]) -> None:
+    assert map_vapi_event(_webhook(message)) is None
