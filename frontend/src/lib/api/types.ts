@@ -36,4 +36,6 @@ export interface ActiveSession {
   agent_id: string;
   status: string;
   started_at: string;
+  speaking_role: "agent" | "user" | null;
+  last_interruption_at: string | null;
 }

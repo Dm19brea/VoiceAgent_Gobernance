@@ -12,6 +12,8 @@ class ActiveSessionSnapshot:
     agent_id: UUID
     status: str
     started_at: datetime
+    speaking_role: str | None = None
+    last_interruption_at: datetime | None = None
 
 
 class ActiveSessionStore(Protocol):
@@ -22,6 +24,12 @@ class ActiveSessionStore(Protocol):
 
     async def mark_active(self, snapshot: ActiveSessionSnapshot) -> None: ...
 
+    async def upsert_lifecycle(self, snapshot: ActiveSessionSnapshot) -> None: ...
+
     async def mark_ended(self, session_id: str) -> None: ...
 
     async def list_active(self) -> list[ActiveSessionSnapshot]: ...
+
+    async def set_speaking_role(self, session_id: str, role: str | None) -> None: ...
+
+    async def mark_interruption(self, session_id: str, at: datetime) -> None: ...
