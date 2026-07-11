@@ -1,3 +1,4 @@
+from src.application.ports.conversation_judge import JudgeVerdict
 from src.domain.agent import Agent
 from src.domain.evaluation_report import EvaluationReport
 from src.domain.event import Event
@@ -62,3 +63,15 @@ class InMemoryGovernanceRepository:
 
     async def get_report_by_session(self, session_id: str) -> EvaluationReport | None:
         return self.reports.get(session_id)
+
+
+class FakeConversationJudge:
+    """Deterministic double implementing the ConversationJudge port for tests."""
+
+    def __init__(self, verdict: JudgeVerdict | None) -> None:
+        self.verdict = verdict
+        self.calls: list[str] = []
+
+    async def evaluate(self, transcript: str) -> JudgeVerdict | None:
+        self.calls.append(transcript)
+        return self.verdict

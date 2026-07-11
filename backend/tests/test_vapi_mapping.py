@@ -326,3 +326,104 @@ def test_specialized_or_unstable_messages_have_no_system_observation_intent(
 )
 def test_specialized_messages_stay_raw_only(message: dict[str, Any]) -> None:
     assert map_vapi_event(_webhook(message)) is None
+
+
+def test_build_judge_transcript_uses_messages_open_ai_formatted_and_skips_system() -> None:
+    from src.adapters.rest.vapi_mapping import build_judge_transcript
+
+    report_message = {
+        "artifact": {
+            "messagesOpenAIFormatted": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Hi there"},
+                {"role": "assistant", "content": "Hello! How can I help?"},
+            ]
+        }
+    }
+
+    transcript = build_judge_transcript(report_message)
+
+    assert "You are a helpful assistant." not in transcript
+    assert "Hi there" in transcript
+    assert "Hello! How can I help?" in transcript
+    lines = [line for line in transcript.splitlines() if line.strip()]
+    assert len(lines) == 2
+
+
+def test_build_judge_transcript_empty_when_no_formatted_messages() -> None:
+    from src.adapters.rest.vapi_mapping import build_judge_transcript
+
+    assert build_judge_transcript({"artifact": {}}) == ""
+    assert build_judge_transcript({}) == ""
+
+
+def test_verdict_to_signal_commands_emits_topic_change_and_goal_achieved() -> None:
+    from datetime import UTC, datetime
+
+    from src.adapters.rest.vapi_mapping import verdict_to_signal_commands
+    from src.application.ports.conversation_judge import JudgeVerdict
+    from src.domain.enums import EventType, Source
+
+    verdict = JudgeVerdict(
+        topic_change_count=3,
+        topics=["billing", "cancellation", "retention"],
+        topic_reason="shifted three times",
+        goal_achieved=True,
+        goal_reason="issue resolved",
+    )
+    timestamp = datetime(2026, 7, 9, 12, 0, tzinfo=UTC)
+
+    commands = verdict_to_signal_commands(verdict, "call-1", timestamp)
+
+    assert len(commands) == 2
+    topic_command = next(c for c in commands if c.event_type is EventType.CONVERSATION_TOPIC_CHANGE)
+    goal_command = next(c for c in commands if c.event_type is EventType.CONVERSATION_GOAL_ACHIEVED)
+    assert topic_command.source is Source.PLATFORM
+    assert topic_command.payload["count"] == 3
+    assert topic_command.payload["topics"] == ["billing", "cancellation", "retention"]
+    assert goal_command.source is Source.PLATFORM
+    assert goal_command.payload["reason"] == "issue resolved"
+    assert all(c.session_id == "call-1" and c.timestamp == timestamp for c in commands)
+
+
+def test_verdict_to_signal_commands_zero_topic_changes_emits_no_topic_command() -> None:
+    from datetime import UTC, datetime
+
+    from src.adapters.rest.vapi_mapping import verdict_to_signal_commands
+    from src.application.ports.conversation_judge import JudgeVerdict
+    from src.domain.enums import EventType
+
+    verdict = JudgeVerdict(
+        topic_change_count=0,
+        topics=[],
+        topic_reason=None,
+        goal_achieved=True,
+        goal_reason="information-only call",
+    )
+
+    commands = verdict_to_signal_commands(verdict, "call-1", datetime(2026, 7, 9, tzinfo=UTC))
+
+    assert len(commands) == 1
+    assert commands[0].event_type is EventType.CONVERSATION_GOAL_ACHIEVED
+
+
+def test_verdict_to_signal_commands_goal_failed_never_emits_goal_achieved() -> None:
+    from datetime import UTC, datetime
+
+    from src.adapters.rest.vapi_mapping import verdict_to_signal_commands
+    from src.application.ports.conversation_judge import JudgeVerdict
+    from src.domain.enums import EventType
+
+    verdict = JudgeVerdict(
+        topic_change_count=0,
+        topics=[],
+        topic_reason=None,
+        goal_achieved=False,
+        goal_reason="issue unresolved",
+    )
+
+    commands = verdict_to_signal_commands(verdict, "call-1", datetime(2026, 7, 9, tzinfo=UTC))
+
+    event_types = [c.event_type for c in commands]
+    assert EventType.CONVERSATION_GOAL_FAILED in event_types
+    assert EventType.CONVERSATION_GOAL_ACHIEVED not in event_types
