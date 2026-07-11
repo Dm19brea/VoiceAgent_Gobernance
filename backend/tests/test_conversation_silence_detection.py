@@ -150,10 +150,13 @@ def test_valid_gap_survives_an_untrustworthy_candidate() -> None:
 
 
 def test_policy_and_results_are_immutable_and_versioned() -> None:
-    assert SilencePolicy(
-        threshold_ms=6000,
-        detector_version="assistant-user-interior-gap/v1",
-    ) == DEFAULT_SILENCE_POLICY
+    assert (
+        SilencePolicy(
+            threshold_ms=6000,
+            detector_version="assistant-user-interior-gap/v1",
+        )
+        == DEFAULT_SILENCE_POLICY
+    )
     assert SILENCE_THRESHOLD_MS == 6000
     assert SILENCE_DETECTOR_VERSION == "assistant-user-interior-gap/v1"
 
