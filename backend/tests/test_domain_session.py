@@ -171,3 +171,74 @@ def test_append_system_error_rejects_active_session() -> None:
         session.append_system_observation(
             EventType.SYSTEM_ERROR, Source.SYSTEM, datetime.now(UTC), {}
         )
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        EventType.CONVERSATION_AGENT_RESPONSE,
+        EventType.CONVERSATION_USER_INPUT,
+    ],
+)
+def test_append_conversation_content_on_closed_session_keeps_lifecycle(
+    event_type: EventType,
+) -> None:
+    session = _session()
+    ended_at = datetime.now(UTC)
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, ended_at, {})
+
+    event = session.append_conversation_content(event_type, Source.AGENT, datetime.now(UTC), {})
+
+    assert event.event_type is event_type
+    assert event.sequence_number == 2
+    assert session.status is SessionStatus.ENDED
+    assert session.ended_at == ended_at
+
+
+def test_append_conversation_content_on_failed_session_keeps_lifecycle() -> None:
+    session = _session()
+    failed_at = datetime.now(UTC)
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, failed_at, {})
+
+    event = session.append_conversation_content(
+        EventType.CONVERSATION_USER_INPUT, Source.USER, datetime.now(UTC), {}
+    )
+
+    assert event.sequence_number == 2
+    assert session.status is SessionStatus.FAILED
+    assert session.ended_at == failed_at
+
+
+def test_append_conversation_content_rejects_active_session() -> None:
+    session = _session()
+
+    with pytest.raises(SessionClosedError):
+        session.append_conversation_content(
+            EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, datetime.now(UTC), {}
+        )
+
+
+def test_append_conversation_content_rejects_non_content_event_type() -> None:
+    session = _session()
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+
+    with pytest.raises(DomainError):
+        session.append_conversation_content(
+            EventType.SYSTEM_ERROR, Source.SYSTEM, datetime.now(UTC), {}
+        )
+
+
+def test_append_conversation_content_accepts_optional_event_id() -> None:
+    session = _session()
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    event_id = uuid4()
+
+    event = session.append_conversation_content(
+        EventType.CONVERSATION_USER_INPUT,
+        Source.USER,
+        datetime.now(UTC),
+        {},
+        event_id=event_id,
+    )
+
+    assert event.event_id == event_id

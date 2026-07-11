@@ -34,3 +34,22 @@ class SystemObservationCommand:
     identity_fields: dict[str, Any] | None
     raw_event_id: UUID | None
     payload: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class ConversationContentCommand:
+    """A retry-safe post-terminal conversation content (agent/user turn) request.
+
+    Identity is derived solely from ``role``, ``content`` (NFC-normalized,
+    stripped) and ``turn_index`` — never from timestamps or raw delivery ids —
+    so reprocessing the same report or a Vapi redelivery is a no-op.
+    """
+
+    session_id: str
+    event_type: EventType
+    source: Source
+    timestamp: datetime
+    role: str
+    content: str
+    turn_index: int
+    payload: dict[str, Any]
