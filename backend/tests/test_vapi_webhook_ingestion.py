@@ -241,3 +241,33 @@ async def test_second_terminal_event_after_failed_is_ignored(
     assert [event.event_type for event in events].count("session.started") == 1
     assert [event.event_type for event in events].count("session.failed") == 1
     assert [event.event_type for event in events].count("system.error") == 1
+
+
+async def test_speech_update_turns_are_live_only_and_not_persisted(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    call = {"id": "call-turns", "assistantId": "asst-turns"}
+
+    def speech(status: str, role: str) -> dict[str, Any]:
+        return {"message": {"type": "speech-update", "status": status, "role": role, "call": call}}
+
+    payloads = [
+        {"message": {"type": "status-update", "status": "in-progress", "call": call}},
+        speech("started", "assistant"),
+        speech("stopped", "assistant"),
+        speech("started", "user"),
+    ]
+    for payload in payloads:
+        assert (await client.post("/webhooks/vapi", json=payload)).status_code == 200
+
+    events = (
+        await db_session.scalars(
+            select(EventModel)
+            .where(EventModel.session_id == "call-turns")
+            .order_by(EventModel.sequence_number)
+        )
+    ).all()
+    # Turn lifecycle is live-only: only the session.started lifecycle event persists.
+    assert [event.event_type for event in events] == ["session.started"]
+    # Every webhook is still landed raw (immutable landing is unaffected).
+    assert len((await db_session.scalars(select(RawEvent))).all()) == 4

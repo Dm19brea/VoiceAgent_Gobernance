@@ -27,6 +27,12 @@ router = APIRouter()
 
 _TERMINAL_EVENTS = (EventType.SESSION_ENDED, EventType.SESSION_FAILED)
 
+# Turn lifecycle (from ``speech-update``) drives only the real-time speaking
+# indicator via ``update_active_state``; it is intentionally NOT persisted as a
+# canonical governance event. Conversation content is derived post-terminal from
+# the end-of-call-report instead.
+_LIVE_ONLY_EVENTS = (EventType.CONVERSATION_TURN_STARTED, EventType.CONVERSATION_TURN_ENDED)
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
@@ -67,7 +73,7 @@ async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, s
 
         command = map_vapi_event(raw)
         repository = SqlAlchemyGovernanceRepository(session)
-        if command is not None:
+        if command is not None and command.event_type not in _LIVE_ONLY_EVENTS:
             canonical_event = await IngestEvent(repository).execute(command)
         for observation in map_vapi_system_observations(raw, raw_event.id):
             await RecordSystemObservation(repository).execute(observation)
