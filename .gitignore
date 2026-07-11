@@ -56,3 +56,9 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# ---- Codegraph -----
+.Codegraph
+
+# ---- OpenSpec (SDD artifacts, not product code) ----
+openspec/
