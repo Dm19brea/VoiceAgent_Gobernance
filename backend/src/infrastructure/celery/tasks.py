@@ -6,13 +6,17 @@ from time import perf_counter
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from src.application.commands import SystemObservationCommand
+from src.adapters.rest.vapi_mapping import derive_conversation_content
+from src.application.commands import ConversationContentCommand, SystemObservationCommand
+from src.application.use_cases.record_conversation_content import RecordConversationContent
 from src.application.use_cases.record_evaluation_triggered import RecordEvaluationTriggered
 from src.application.use_cases.record_system_observation import RecordSystemObservation
 from src.domain.enums import EventType, Source
 from src.domain.evaluation_report import EvaluationReport
+from src.domain.event import Event
 from src.domain.evidence_builder import build_evidences
 from src.domain.scoring.evaluator import DeterministicEvaluator
+from src.domain.session import Session
 from src.infrastructure.celery.app import celery_app
 from src.infrastructure.config import settings
 from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
@@ -68,6 +72,7 @@ async def build_session_evidences_async(session_id: str) -> int:
                     duration_milliseconds=(perf_counter() - evaluation_started) * 1000,
                 ),
             )
+            await _record_conversation_content(session_id, governance_session)
             return len(evidences)
     finally:
         await engine.dispose()
@@ -174,3 +179,60 @@ async def _record_evaluation_observations(
             await engine.dispose()
     except Exception:
         logger.exception("Failed to record evaluation system observations: session=%s", session_id)
+
+
+_TERMINAL_EVENT_TYPES = frozenset({EventType.SESSION_ENDED, EventType.SESSION_FAILED})
+
+
+def _terminal_event(governance_session: Session) -> Event | None:
+    return next(
+        (event for event in governance_session.events if event.event_type in _TERMINAL_EVENT_TYPES),
+        None,
+    )
+
+
+async def _record_conversation_content(session_id: str, governance_session: Session) -> None:
+    """Derive and persist conversation content events in an isolated best-effort transaction.
+
+    Content is derived audit enrichment sourced from the session's own terminal
+    event payload (the ``end-of-call-report`` message, retained with its
+    ``artifact``). Isolated in its own engine/transaction after the evidence
+    and evaluation observations, so a failure here never blocks or corrupts
+    the critical path.
+    """
+    try:
+        terminal_event = _terminal_event(governance_session)
+        if terminal_event is None:
+            return
+
+        ended_at = governance_session.ended_at or terminal_event.timestamp
+        derived = derive_conversation_content(terminal_event.payload, ended_at)
+        if not derived:
+            return
+
+        commands = [
+            ConversationContentCommand(
+                session_id=session_id,
+                event_type=event_type,
+                source=source,
+                timestamp=timestamp,
+                role=role,
+                content=content,
+                turn_index=turn_index,
+                payload=payload,
+            )
+            for event_type, source, timestamp, role, content, turn_index, payload in derived
+        ]
+
+        engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
+        try:
+            maker = async_sessionmaker(engine, expire_on_commit=False)
+            async with maker() as content_session:
+                repository = SqlAlchemyGovernanceRepository(content_session)
+                recorder = RecordConversationContent(repository)
+                await recorder.execute(session_id, commands)
+                await content_session.commit()
+        finally:
+            await engine.dispose()
+    except Exception:
+        logger.exception("Failed to record conversation content: session=%s", session_id)

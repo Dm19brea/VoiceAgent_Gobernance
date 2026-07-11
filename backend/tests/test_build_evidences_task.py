@@ -4,6 +4,7 @@ import pytest
 from pytest import LogCaptureFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.use_cases.record_conversation_content import RecordConversationContent
 from src.application.use_cases.record_system_observation import RecordSystemObservation
 from src.domain.agent import Agent
 from src.domain.enums import EventType, SessionStatus, Source
@@ -269,6 +270,154 @@ async def test_evaluation_error_observation_failure_does_not_recurse(
 
     assert caplog.text.count("Failed to record evaluation system observations") == 1
     reloaded = await repo.get_session("call-error-containment")
+    assert reloaded is not None
+    assert reloaded.status is SessionStatus.ENDED
+    assert reloaded.ended_at == END
+
+
+def _report_payload(messages_open_ai_formatted: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "report": {"ended_reason": "ok"},
+        "artifact": {
+            "messagesOpenAIFormatted": messages_open_ai_formatted,
+            "messages": [],
+        },
+    }
+
+
+async def test_content_events_derived_after_evidence_and_evaluation_observations(
+    db_session: AsyncSession,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-content")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-content-task", agent.agent_id, START)
+    session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload(
+            [
+                {"role": "user", "content": "Hi"},
+                {"role": "assistant", "content": "Hello!"},
+            ]
+        ),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    await build_session_evidences_async("call-content-task")
+
+    reloaded = await repo.get_session("call-content-task")
+    assert reloaded is not None
+    content_events = [
+        e
+        for e in reloaded.events
+        if e.event_type
+        in (EventType.CONVERSATION_USER_INPUT, EventType.CONVERSATION_AGENT_RESPONSE)
+    ]
+    assert [e.event_type for e in content_events] == [
+        EventType.CONVERSATION_USER_INPUT,
+        EventType.CONVERSATION_AGENT_RESPONSE,
+    ]
+    marker_index = next(
+        i
+        for i, e in enumerate(reloaded.events)
+        if e.event_type is EventType.SESSION_EVALUATION_TRIGGERED
+    )
+    content_indexes = [i for i, e in enumerate(reloaded.events) if e in content_events]
+    assert all(i > marker_index for i in content_indexes)
+    assert content_events[0].sequence_number == len(reloaded.events) - 1
+    assert content_events[1].sequence_number == len(reloaded.events)
+
+
+async def test_missing_messages_open_ai_formatted_produces_zero_content_events(
+    db_session: AsyncSession,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-content-empty")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-content-empty", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED, Source.PLATFORM, END, {"report": {"ended_reason": "ok"}}
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    count = await build_session_evidences_async("call-content-empty")
+
+    assert count > 0
+    reloaded = await repo.get_session("call-content-empty")
+    assert reloaded is not None
+    content_events = [
+        e
+        for e in reloaded.events
+        if e.event_type
+        in (EventType.CONVERSATION_USER_INPUT, EventType.CONVERSATION_AGENT_RESPONSE)
+    ]
+    assert content_events == []
+
+
+async def test_reprocessing_report_does_not_duplicate_content_events(
+    db_session: AsyncSession,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-content-retry")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-content-retry", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "Hi"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    await build_session_evidences_async("call-content-retry")
+    await build_session_evidences_async("call-content-retry")
+
+    reloaded = await repo.get_session("call-content-retry")
+    assert reloaded is not None
+    content_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_USER_INPUT
+    ]
+    assert len(content_events) == 1
+
+
+async def test_conversation_content_failure_does_not_raise_or_rollback_evaluation(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: LogCaptureFixture,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-content-fail")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-content-fail", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "Hi"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    async def _boom(_self: RecordConversationContent, _session_id: str, _commands: object) -> None:
+        raise RuntimeError("conversation content persistence failed")
+
+    monkeypatch.setattr(RecordConversationContent, "execute", _boom)
+
+    count = await build_session_evidences_async("call-content-fail")
+
+    assert count > 0
+    assert caplog.text.count("Failed to record conversation content") == 1
+    reloaded = await repo.get_session("call-content-fail")
     assert reloaded is not None
     assert reloaded.status is SessionStatus.ENDED
     assert reloaded.ended_at == END

@@ -250,8 +250,6 @@ def _resolve(vapi_type: str, message: dict[str, Any]) -> tuple[EventType, Source
         return (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT)
     if vapi_type == "transcript":
         return _resolve_role_message(message)
-    if vapi_type == "conversation-update":
-        return _resolve_role_message(message)
     if vapi_type == "user-interrupted":
         return (EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.USER)
     if vapi_type in _TOOL_CALL_TYPES:
@@ -296,6 +294,106 @@ def _source_from_role(role: object) -> Source | None:
         return Source.AGENT
     if role == "user":
         return Source.USER
+    return None
+
+
+def derive_conversation_content(
+    report_message: dict[str, Any], session_ended_at: datetime
+) -> list[tuple[EventType, Source, datetime, str, str, int, dict[str, Any]]]:
+    """Derive ordered content-event tuples from an end-of-call-report ``message``.
+
+    Iterates ``artifact.messagesOpenAIFormatted`` (consolidated, one entry per
+    turn) in order, skipping ``system`` entries. Each turn's timestamp is
+    aligned against ``artifact.messages`` (fragmented, multiple bot rows per
+    assistant turn) by first consolidating consecutive same-role fragments
+    into one time-per-turn list, then matching role-by-role at the same
+    position. Falls back to ``session_ended_at`` when timing is missing or
+    the aligned role does not match (misalignment).
+
+    Returns tuples of ``(event_type, source, timestamp, role, content,
+    turn_index, payload)`` in report order. ``turn_index`` counts only
+    non-system turns.
+    """
+    artifact = report_message.get("artifact")
+    if not isinstance(artifact, dict):
+        return []
+    formatted = artifact.get("messagesOpenAIFormatted")
+    if not isinstance(formatted, list) or not formatted:
+        return []
+
+    raw_messages = artifact.get("messages")
+    turns = _consolidate_messages_by_turn(raw_messages if isinstance(raw_messages, list) else [])
+
+    results: list[tuple[EventType, Source, datetime, str, str, int, dict[str, Any]]] = []
+    turn_index = 0
+    for entry in formatted:
+        if not isinstance(entry, dict):
+            continue
+        role = entry.get("role")
+        content = entry.get("content")
+        if role not in ("assistant", "user") or not isinstance(content, str):
+            continue
+
+        timestamp = session_ended_at
+        if turn_index < len(turns):
+            aligned_role, aligned_time = turns[turn_index]
+            if aligned_role == role and aligned_time is not None:
+                timestamp = aligned_time
+
+        event_type = (
+            EventType.CONVERSATION_AGENT_RESPONSE
+            if role == "assistant"
+            else EventType.CONVERSATION_USER_INPUT
+        )
+        source = Source.AGENT if role == "assistant" else Source.USER
+        payload = {"content": content, "role": role, "turn_index": turn_index}
+        results.append((event_type, source, timestamp, role, content, turn_index, payload))
+        turn_index += 1
+
+    return results
+
+
+def _consolidate_messages_by_turn(messages: list[Any]) -> list[tuple[str, datetime | None]]:
+    """Collapse consecutive same-role ``messages[]`` fragments into one turn.
+
+    ``messages`` is fragmented (Vapi can emit multiple bot rows per assistant
+    turn); ``messagesOpenAIFormatted`` is consolidated (one row per turn). A
+    naive positional zip between the two therefore misaligns after the first
+    fragmented turn. This groups consecutive same-role rows into a single
+    turn, keeping the first fragment's ``time`` (the turn's start), so the
+    result lines up positionally with ``messagesOpenAIFormatted``.
+    """
+    turns: list[tuple[str, datetime | None]] = []
+    last_role: str | None = None
+    for entry in messages:
+        if not isinstance(entry, dict):
+            continue
+        role = _normalise_report_message_role(entry.get("role"))
+        if role is None:
+            continue
+        if role == last_role:
+            continue
+        turns.append((role, _parse_report_time(entry.get("time"))))
+        last_role = role
+    return turns
+
+
+def _normalise_report_message_role(raw_role: object) -> str | None:
+    if raw_role == "bot":
+        return "assistant"
+    if raw_role == "user":
+        return "user"
+    return None
+
+
+def _parse_report_time(raw: object) -> datetime | None:
+    if isinstance(raw, int | float):
+        return datetime.fromtimestamp(raw / 1000, tz=UTC)
+    if isinstance(raw, str):
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            return None
     return None
 
 
