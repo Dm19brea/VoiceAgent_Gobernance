@@ -1,5 +1,6 @@
 import dataclasses
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import pytest
 
@@ -90,7 +91,12 @@ def test_invalid_or_inconsistent_boundaries_fail_closed(
 
 
 def test_non_finite_datetime_like_values_fail_closed() -> None:
-    malformed = TimedTurn(role="assistant", turn_index=0, started_at=BASE, ended_at=float("nan"))
+    malformed = TimedTurn(
+        role="assistant",
+        turn_index=0,
+        started_at=BASE,
+        ended_at=cast(Any, float("nan")),
+    )
     user = _turn("user", 1, 8000, 9000)
 
     assert detect_user_response_silence((malformed, user)) is None
