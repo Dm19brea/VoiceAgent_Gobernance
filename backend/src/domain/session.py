@@ -21,6 +21,13 @@ _CONVERSATION_CONTENT_EVENTS = frozenset(
         EventType.CONVERSATION_USER_INPUT,
     }
 )
+_SIGNAL_EVENTS = frozenset(
+    {
+        EventType.CONVERSATION_TOPIC_CHANGE,
+        EventType.CONVERSATION_GOAL_ACHIEVED,
+        EventType.CONVERSATION_GOAL_FAILED,
+    }
+)
 
 
 @dataclass
@@ -151,6 +158,37 @@ class Session:
             raise SessionClosedError(f"Session {self.session_id} is still active")
         if event_type not in _CONVERSATION_CONTENT_EVENTS:
             raise DomainError(f"{event_type} is not a valid conversation content event")
+
+        event = Event(
+            session_id=self.session_id,
+            event_type=event_type,
+            source=source,
+            sequence_number=len(self.events) + 1,
+            timestamp=timestamp,
+            payload=payload,
+            **({"event_id": event_id} if event_id is not None else {}),
+        )
+        self.events.append(event)
+        return event
+
+    def append_conversation_signal(
+        self,
+        event_type: EventType,
+        source: Source,
+        timestamp: datetime,
+        payload: dict[str, Any],
+        event_id: UUID | None = None,
+    ) -> Event:
+        """Append a post-terminal LLM-judge signal event (topic change / goal verdict).
+
+        Derived from the full transcript after the session has closed, so this
+        mirrors ``append_conversation_content``: valid only once the session is
+        no longer ACTIVE, and never mutates ``status``/``ended_at``.
+        """
+        if self.status is SessionStatus.ACTIVE:
+            raise SessionClosedError(f"Session {self.session_id} is still active")
+        if event_type not in _SIGNAL_EVENTS:
+            raise DomainError(f"{event_type} is not a valid conversation signal event")
 
         event = Event(
             session_id=self.session_id,

@@ -53,3 +53,21 @@ class ConversationContentCommand:
     content: str
     turn_index: int
     payload: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class ConversationSignalCommand:
+    """A retry-safe post-terminal LLM-judge signal (topic change / goal verdict).
+
+    ``identity_fields`` intentionally contains only the stable outcome fields
+    (topic count, goal verdict) — never ``reason`` text, timestamps, or raw
+    delivery ids — so reprocessing the same report or a provider redelivery is
+    a no-op.
+    """
+
+    session_id: str
+    event_type: EventType
+    source: Source
+    timestamp: datetime
+    identity_fields: dict[str, Any]
+    payload: dict[str, Any]

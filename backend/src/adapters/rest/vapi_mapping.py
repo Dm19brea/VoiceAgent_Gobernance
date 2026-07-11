@@ -3,7 +3,12 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from src.application.commands import IngestEventCommand, SystemObservationCommand
+from src.application.commands import (
+    ConversationSignalCommand,
+    IngestEventCommand,
+    SystemObservationCommand,
+)
+from src.application.ports.conversation_judge import JudgeVerdict
 from src.domain.enums import EventType, Source
 
 _TOOL_CALL_TYPES = {
@@ -395,6 +400,84 @@ def _parse_report_time(raw: object) -> datetime | None:
         except ValueError:
             return None
     return None
+
+
+def build_judge_transcript(report_message: dict[str, Any]) -> str:
+    """Build a plain-text transcript for the LLM judge from the SAME source
+    used by ``derive_conversation_content`` (``artifact.messagesOpenAIFormatted``),
+    skipping ``system`` entries.
+
+    Returns an empty string when there is nothing to judge.
+    """
+    artifact = report_message.get("artifact")
+    if not isinstance(artifact, dict):
+        return ""
+    formatted = artifact.get("messagesOpenAIFormatted")
+    if not isinstance(formatted, list) or not formatted:
+        return ""
+
+    lines: list[str] = []
+    for entry in formatted:
+        if not isinstance(entry, dict):
+            continue
+        role = entry.get("role")
+        content = entry.get("content")
+        if role not in ("assistant", "user") or not isinstance(content, str):
+            continue
+        speaker = "agent" if role == "assistant" else "caller"
+        lines.append(f"{speaker}: {content}")
+
+    return "\n".join(lines)
+
+
+def verdict_to_signal_commands(
+    verdict: JudgeVerdict, session_id: str, timestamp: datetime
+) -> list[ConversationSignalCommand]:
+    """Translate a ``JudgeVerdict`` into retry-safe signal commands.
+
+    Emits at most one ``conversation.topic_change`` command (only when
+    ``topic_change_count > 0``) and exactly one mutually-exclusive
+    ``conversation.goal_achieved`` / ``conversation.goal_failed`` command.
+    ``identity_fields`` carries only the stable outcome fields, never
+    ``reason`` text or timestamps.
+    """
+    commands: list[ConversationSignalCommand] = []
+
+    if verdict.topic_change_count > 0:
+        topic_payload: dict[str, Any] = {
+            "count": verdict.topic_change_count,
+            "topics": verdict.topics,
+        }
+        if verdict.topic_reason:
+            topic_payload["reason"] = verdict.topic_reason
+        commands.append(
+            ConversationSignalCommand(
+                session_id=session_id,
+                event_type=EventType.CONVERSATION_TOPIC_CHANGE,
+                source=Source.PLATFORM,
+                timestamp=timestamp,
+                identity_fields={"count": verdict.topic_change_count},
+                payload=topic_payload,
+            )
+        )
+
+    goal_event_type = (
+        EventType.CONVERSATION_GOAL_ACHIEVED
+        if verdict.goal_achieved
+        else EventType.CONVERSATION_GOAL_FAILED
+    )
+    commands.append(
+        ConversationSignalCommand(
+            session_id=session_id,
+            event_type=goal_event_type,
+            source=Source.PLATFORM,
+            timestamp=timestamp,
+            identity_fields={"verdict": "achieved" if verdict.goal_achieved else "failed"},
+            payload={"reason": verdict.goal_reason},
+        )
+    )
+
+    return commands
 
 
 def _timestamp(message: dict[str, Any]) -> datetime:

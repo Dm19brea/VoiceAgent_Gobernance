@@ -242,3 +242,75 @@ def test_append_conversation_content_accepts_optional_event_id() -> None:
     )
 
     assert event.event_id == event_id
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        EventType.CONVERSATION_TOPIC_CHANGE,
+        EventType.CONVERSATION_GOAL_ACHIEVED,
+        EventType.CONVERSATION_GOAL_FAILED,
+    ],
+)
+def test_append_conversation_signal_on_closed_session_keeps_lifecycle(
+    event_type: EventType,
+) -> None:
+    session = _session()
+    ended_at = datetime.now(UTC)
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, ended_at, {})
+
+    event = session.append_conversation_signal(event_type, Source.PLATFORM, datetime.now(UTC), {})
+
+    assert event.event_type is event_type
+    assert event.sequence_number == 2
+    assert session.status is SessionStatus.ENDED
+    assert session.ended_at == ended_at
+
+
+def test_append_conversation_signal_on_failed_session_keeps_lifecycle() -> None:
+    session = _session()
+    failed_at = datetime.now(UTC)
+    session.record(EventType.SESSION_FAILED, Source.PLATFORM, failed_at, {})
+
+    event = session.append_conversation_signal(
+        EventType.CONVERSATION_GOAL_FAILED, Source.PLATFORM, datetime.now(UTC), {}
+    )
+
+    assert event.sequence_number == 2
+    assert session.status is SessionStatus.FAILED
+    assert session.ended_at == failed_at
+
+
+def test_append_conversation_signal_rejects_active_session() -> None:
+    session = _session()
+
+    with pytest.raises(SessionClosedError):
+        session.append_conversation_signal(
+            EventType.CONVERSATION_TOPIC_CHANGE, Source.PLATFORM, datetime.now(UTC), {}
+        )
+
+
+def test_append_conversation_signal_rejects_non_signal_event_type() -> None:
+    session = _session()
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+
+    with pytest.raises(DomainError):
+        session.append_conversation_signal(
+            EventType.SYSTEM_ERROR, Source.PLATFORM, datetime.now(UTC), {}
+        )
+
+
+def test_append_conversation_signal_accepts_optional_event_id() -> None:
+    session = _session()
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    event_id = uuid4()
+
+    event = session.append_conversation_signal(
+        EventType.CONVERSATION_GOAL_ACHIEVED,
+        Source.PLATFORM,
+        datetime.now(UTC),
+        {},
+        event_id=event_id,
+    )
+
+    assert event.event_id == event_id

@@ -6,9 +6,15 @@ from time import perf_counter
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from src.adapters.rest.vapi_mapping import derive_conversation_content
+from src.adapters.llm.openrouter_judge import OpenRouterConversationJudge
+from src.adapters.rest.vapi_mapping import (
+    build_judge_transcript,
+    derive_conversation_content,
+    verdict_to_signal_commands,
+)
 from src.application.commands import ConversationContentCommand, SystemObservationCommand
 from src.application.use_cases.record_conversation_content import RecordConversationContent
+from src.application.use_cases.record_conversation_signals import RecordConversationSignals
 from src.application.use_cases.record_evaluation_triggered import RecordEvaluationTriggered
 from src.application.use_cases.record_system_observation import RecordSystemObservation
 from src.domain.enums import EventType, Source
@@ -73,6 +79,7 @@ async def build_session_evidences_async(session_id: str) -> int:
                 ),
             )
             await _record_conversation_content(session_id, governance_session)
+            await _record_conversation_signals(session_id, governance_session)
             return len(evidences)
     finally:
         await engine.dispose()
@@ -236,3 +243,43 @@ async def _record_conversation_content(session_id: str, governance_session: Sess
             await engine.dispose()
     except Exception:
         logger.exception("Failed to record conversation content: session=%s", session_id)
+
+
+async def _record_conversation_signals(session_id: str, governance_session: Session) -> None:
+    """Run the LLM judge and persist derived signal events in an isolated best-effort transaction.
+
+    Best-effort and isolated in its own engine/transaction, run AFTER conversation
+    content derivation. A judge failure (network, retry exhaustion, or persistence
+    error) never blocks or corrupts content derivation or the critical path.
+    """
+    try:
+        terminal_event = _terminal_event(governance_session)
+        if terminal_event is None:
+            return
+
+        transcript = build_judge_transcript(terminal_event.payload)
+        if not transcript:
+            return
+
+        judge = OpenRouterConversationJudge()
+        verdict = await judge.evaluate(transcript)
+        if verdict is None:
+            return
+
+        ended_at = governance_session.ended_at or terminal_event.timestamp
+        commands = verdict_to_signal_commands(verdict, session_id, ended_at)
+        if not commands:
+            return
+
+        engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
+        try:
+            maker = async_sessionmaker(engine, expire_on_commit=False)
+            async with maker() as signal_session:
+                repository = SqlAlchemyGovernanceRepository(signal_session)
+                recorder = RecordConversationSignals(repository)
+                await recorder.execute(session_id, commands)
+                await signal_session.commit()
+        finally:
+            await engine.dispose()
+    except Exception:
+        logger.exception("Failed to record conversation signals: session=%s", session_id)

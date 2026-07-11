@@ -4,7 +4,9 @@ import pytest
 from pytest import LogCaptureFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.ports.conversation_judge import JudgeVerdict
 from src.application.use_cases.record_conversation_content import RecordConversationContent
+from src.application.use_cases.record_conversation_signals import RecordConversationSignals
 from src.application.use_cases.record_system_observation import RecordSystemObservation
 from src.domain.agent import Agent
 from src.domain.enums import EventType, SessionStatus, Source
@@ -12,6 +14,7 @@ from src.domain.session import Session
 from src.infrastructure.celery import tasks as tasks_module
 from src.infrastructure.celery.tasks import build_session_evidences_async
 from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
+from tests.fakes import FakeConversationJudge
 
 START = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
 END = datetime(2026, 1, 1, 10, 0, 30, tzinfo=UTC)
@@ -421,3 +424,285 @@ async def test_conversation_content_failure_does_not_raise_or_rollback_evaluatio
     assert reloaded is not None
     assert reloaded.status is SessionStatus.ENDED
     assert reloaded.ended_at == END
+
+
+def _achieved_verdict(*, count: int = 3, topics: list[str] | None = None) -> JudgeVerdict:
+    return JudgeVerdict(
+        topic_change_count=count,
+        topics=topics if topics is not None else ["billing", "cancellation", "retention"],
+        topic_reason="shifted three times",
+        goal_achieved=True,
+        goal_reason="issue resolved",
+    )
+
+
+def _info_only_verdict() -> JudgeVerdict:
+    return JudgeVerdict(
+        topic_change_count=0,
+        topics=[],
+        topic_reason=None,
+        goal_achieved=True,
+        goal_reason="information-only call",
+    )
+
+
+def _failed_verdict() -> JudgeVerdict:
+    return JudgeVerdict(
+        topic_change_count=0,
+        topics=[],
+        topic_reason=None,
+        goal_achieved=False,
+        goal_reason="appointment was not confirmed",
+    )
+
+
+async def test_conversation_signals_run_after_conversation_content(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-signal-order")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-signal-order", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "Hi"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    fake_judge = FakeConversationJudge(_achieved_verdict())
+    monkeypatch.setattr(tasks_module, "OpenRouterConversationJudge", lambda: fake_judge)
+
+    await build_session_evidences_async("call-signal-order")
+
+    reloaded = await repo.get_session("call-signal-order")
+    assert reloaded is not None
+    content_index = next(
+        i
+        for i, e in enumerate(reloaded.events)
+        if e.event_type is EventType.CONVERSATION_USER_INPUT
+    )
+    signal_indexes = [
+        i
+        for i, e in enumerate(reloaded.events)
+        if e.event_type
+        in (
+            EventType.CONVERSATION_TOPIC_CHANGE,
+            EventType.CONVERSATION_GOAL_ACHIEVED,
+            EventType.CONVERSATION_GOAL_FAILED,
+        )
+    ]
+    assert signal_indexes
+    assert all(i > content_index for i in signal_indexes)
+    assert len(fake_judge.calls) == 1
+
+
+async def test_conversation_signals_success_path_writes_topic_and_goal_events(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-signal-success")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-signal-success", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "Hi"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_achieved_verdict()),
+    )
+
+    await build_session_evidences_async("call-signal-success")
+    await build_session_evidences_async("call-signal-success")  # reprocessing
+
+    reloaded = await repo.get_session("call-signal-success")
+    assert reloaded is not None
+    topic_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_TOPIC_CHANGE
+    ]
+    goal_achieved_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_GOAL_ACHIEVED
+    ]
+    goal_failed_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_GOAL_FAILED
+    ]
+    assert len(topic_events) == 1
+    assert len(goal_achieved_events) == 1
+    assert len(goal_failed_events) == 0
+
+
+async def test_conversation_signals_goal_failed_path_writes_only_goal_failed(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-signal-failed")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-signal-failed", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "I could not confirm the appointment."}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_failed_verdict()),
+    )
+
+    await build_session_evidences_async("call-signal-failed")
+
+    reloaded = await repo.get_session("call-signal-failed")
+    assert reloaded is not None
+    goal_achieved_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_GOAL_ACHIEVED
+    ]
+    goal_failed_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_GOAL_FAILED
+    ]
+    assert goal_achieved_events == []
+    assert len(goal_failed_events) == 1
+    assert goal_failed_events[0].payload["reason"] == "appointment was not confirmed"
+    assert goal_failed_events[0].payload["identity"] == str(goal_failed_events[0].event_id)
+
+
+async def test_conversation_signals_info_only_call_yields_only_goal_achieved(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-signal-info")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-signal-info", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "What are your hours?"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_info_only_verdict()),
+    )
+
+    await build_session_evidences_async("call-signal-info")
+
+    reloaded = await repo.get_session("call-signal-info")
+    assert reloaded is not None
+    topic_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_TOPIC_CHANGE
+    ]
+    goal_achieved_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_GOAL_ACHIEVED
+    ]
+    assert topic_events == []
+    assert len(goal_achieved_events) == 1
+
+
+async def test_conversation_signals_retry_exhaustion_yields_zero_signals_content_intact(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-signal-exhaust")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-signal-exhaust", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "Hi"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        tasks_module, "OpenRouterConversationJudge", lambda: FakeConversationJudge(None)
+    )
+
+    await build_session_evidences_async("call-signal-exhaust")
+
+    reloaded = await repo.get_session("call-signal-exhaust")
+    assert reloaded is not None
+    signal_events = [
+        e
+        for e in reloaded.events
+        if e.event_type
+        in (
+            EventType.CONVERSATION_TOPIC_CHANGE,
+            EventType.CONVERSATION_GOAL_ACHIEVED,
+            EventType.CONVERSATION_GOAL_FAILED,
+        )
+    ]
+    content_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_USER_INPUT
+    ]
+    assert signal_events == []
+    assert len(content_events) == 1
+
+
+async def test_conversation_signals_failure_does_not_raise_or_affect_content(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: LogCaptureFixture,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-signal-boom")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-signal-boom", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "Hi"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    async def _boom(_self: RecordConversationSignals, _session_id: str, _commands: object) -> None:
+        raise RuntimeError("conversation signal persistence failed")
+
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_achieved_verdict()),
+    )
+    monkeypatch.setattr(RecordConversationSignals, "execute", _boom)
+
+    count = await build_session_evidences_async("call-signal-boom")
+
+    assert count > 0
+    assert caplog.text.count("Failed to record conversation signals") == 1
+    reloaded = await repo.get_session("call-signal-boom")
+    assert reloaded is not None
+    assert reloaded.status is SessionStatus.ENDED
+    assert reloaded.ended_at == END
+    content_events = [
+        e for e in reloaded.events if e.event_type is EventType.CONVERSATION_USER_INPUT
+    ]
+    assert len(content_events) == 1
