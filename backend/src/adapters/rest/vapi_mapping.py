@@ -1,5 +1,7 @@
 import hashlib
+from dataclasses import replace
 from datetime import UTC, datetime
+from math import isfinite
 from typing import Any
 from uuid import UUID
 
@@ -9,6 +11,7 @@ from src.application.commands import (
     SystemObservationCommand,
 )
 from src.application.ports.conversation_judge import JudgeVerdict
+from src.application.use_cases.detect_conversation_silence import TimedTurn
 from src.domain.enums import EventType, Source
 
 _TOOL_CALL_TYPES = {
@@ -311,7 +314,7 @@ def derive_conversation_content(
     turn) in order, skipping ``system`` entries. Each turn's timestamp is
     aligned against ``artifact.messages`` (fragmented, multiple bot rows per
     assistant turn) by first consolidating consecutive same-role fragments
-    into one time-per-turn list, then matching role-by-role at the same
+    into one boundary-per-turn list, then matching role-by-role at the same
     position. Falls back to ``session_ended_at`` when timing is missing or
     the aligned role does not match (misalignment).
 
@@ -341,9 +344,9 @@ def derive_conversation_content(
 
         timestamp = session_ended_at
         if turn_index < len(turns):
-            aligned_role, aligned_time = turns[turn_index]
-            if aligned_role == role and aligned_time is not None:
-                timestamp = aligned_time
+            aligned_turn = turns[turn_index]
+            if aligned_turn.role == role and aligned_turn.started_at is not None:
+                timestamp = aligned_turn.started_at
 
         event_type = (
             EventType.CONVERSATION_AGENT_RESPONSE
@@ -358,17 +361,49 @@ def derive_conversation_content(
     return results
 
 
-def _consolidate_messages_by_turn(messages: list[Any]) -> list[tuple[str, datetime | None]]:
+def derive_conversation_timed_turns(report_message: dict[str, Any]) -> tuple[TimedTurn, ...] | None:
+    """Return strictly aligned turn boundaries for silence derivation.
+
+    Content persistence may fall back to the terminal timestamp, but silence
+    evidence must fail closed unless the formatted and raw turn sequences agree
+    exactly in both count and role.
+    """
+    artifact = report_message.get("artifact")
+    if not isinstance(artifact, dict):
+        return None
+
+    formatted = artifact.get("messagesOpenAIFormatted")
+    raw_messages = artifact.get("messages")
+    if not isinstance(formatted, list) or not isinstance(raw_messages, list):
+        return None
+
+    formatted_roles = [
+        entry.get("role")
+        for entry in formatted
+        if isinstance(entry, dict)
+        and entry.get("role") in ("assistant", "user")
+        and isinstance(entry.get("content"), str)
+    ]
+    turns = _consolidate_messages_by_turn(raw_messages)
+    if len(formatted_roles) != len(turns):
+        return None
+    if any(role != turn.role for role, turn in zip(formatted_roles, turns, strict=True)):
+        return None
+    return tuple(turns)
+
+
+def _consolidate_messages_by_turn(messages: list[Any]) -> list[TimedTurn]:
     """Collapse consecutive same-role ``messages[]`` fragments into one turn.
 
     ``messages`` is fragmented (Vapi can emit multiple bot rows per assistant
     turn); ``messagesOpenAIFormatted`` is consolidated (one row per turn). A
     naive positional zip between the two therefore misaligns after the first
     fragmented turn. This groups consecutive same-role rows into a single
-    turn, keeping the first fragment's ``time`` (the turn's start), so the
-    result lines up positionally with ``messagesOpenAIFormatted``.
+    turn, keeping the first fragment's ``time`` and final fragment's
+    ``endTime``, so the result lines up positionally with
+    ``messagesOpenAIFormatted``.
     """
-    turns: list[tuple[str, datetime | None]] = []
+    turns: list[TimedTurn] = []
     last_role: str | None = None
     for entry in messages:
         if not isinstance(entry, dict):
@@ -377,8 +412,16 @@ def _consolidate_messages_by_turn(messages: list[Any]) -> list[tuple[str, dateti
         if role is None:
             continue
         if role == last_role:
+            turns[-1] = replace(turns[-1], ended_at=_parse_report_time(entry.get("endTime")))
             continue
-        turns.append((role, _parse_report_time(entry.get("time"))))
+        turns.append(
+            TimedTurn(
+                role=role,
+                turn_index=len(turns),
+                started_at=_parse_report_time(entry.get("time")),
+                ended_at=_parse_report_time(entry.get("endTime")),
+            )
+        )
         last_role = role
     return turns
 
@@ -392,14 +435,30 @@ def _normalise_report_message_role(raw_role: object) -> str | None:
 
 
 def _parse_report_time(raw: object) -> datetime | None:
+    parsed: datetime
+    if isinstance(raw, bool):
+        return None
     if isinstance(raw, int | float):
-        return datetime.fromtimestamp(raw / 1000, tz=UTC)
-    if isinstance(raw, str):
+        if (isinstance(raw, float) and not isfinite(raw)) or raw < 0:
+            return None
         try:
-            return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            parsed = datetime.fromtimestamp(raw / 1000, tz=UTC)
+        except (OverflowError, OSError, ValueError):
+            return None
+    elif isinstance(raw, str):
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
         except ValueError:
             return None
-    return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    try:
+        timestamp = parsed.astimezone(UTC).timestamp()
+    except (OverflowError, OSError, ValueError):
+        return None
+    return parsed if isfinite(timestamp) and timestamp >= 0 else None
 
 
 def build_judge_transcript(report_message: dict[str, Any]) -> str:
