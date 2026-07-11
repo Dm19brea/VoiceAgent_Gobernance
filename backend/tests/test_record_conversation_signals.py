@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -52,6 +53,37 @@ def _goal_command(
     )
 
 
+def _silence_command(
+    *,
+    detector_version: str = "assistant-user-interior-gap/v1",
+    count: int = 1,
+    timestamp: datetime | None = None,
+    session_id: str = "call-signal",
+) -> ConversationSignalCommand:
+    intervals = [
+        {
+            "assistant_turn_index": 0,
+            "user_turn_index": 1,
+            "started_at": "2026-07-09T10:00:01+00:00",
+            "ended_at": "2026-07-09T10:00:07+00:00",
+            "duration_ms": 6000,
+        }
+    ] * count
+    return ConversationSignalCommand(
+        session_id=session_id,
+        event_type=EventType.CONVERSATION_SILENCE_DETECTED,
+        source=Source.PLATFORM,
+        timestamp=timestamp or datetime(2026, 7, 9, 10, 0, 7, tzinfo=UTC),
+        identity_fields={"detector_version": detector_version},
+        payload={
+            "count": count,
+            "threshold_ms": 6000,
+            "detector_version": detector_version,
+            "intervals": intervals,
+        },
+    )
+
+
 def test_canonical_signal_identity_is_stable_across_retries() -> None:
     first = _topic_command(timestamp=datetime(2026, 7, 9, 10, tzinfo=UTC))
     retry = _topic_command(timestamp=datetime(2026, 7, 9, 11, tzinfo=UTC))
@@ -77,6 +109,30 @@ def test_canonical_goal_identity_ignores_reason_only_verdict() -> None:
 
     assert canonical_signal_event_id(achieved_a) == canonical_signal_event_id(achieved_b)
     assert canonical_signal_event_id(achieved_a) != canonical_signal_event_id(failed)
+
+
+def test_canonical_silence_identity_uses_session_type_and_immutable_version_only() -> None:
+    baseline = _silence_command(count=1)
+    recomputed_details = _silence_command(
+        count=3,
+        timestamp=datetime(2026, 7, 9, 11, tzinfo=UTC),
+    )
+    recomputed_identity_fields = replace(
+        baseline,
+        identity_fields={
+            "detector_version": "assistant-user-interior-gap/v1",
+            "count": 99,
+        },
+    )
+    next_version = _silence_command(detector_version="assistant-user-interior-gap/v2")
+    other_session = _silence_command(session_id="other-session")
+
+    assert canonical_signal_event_id(baseline) == canonical_signal_event_id(recomputed_details)
+    assert canonical_signal_event_id(baseline) == canonical_signal_event_id(
+        recomputed_identity_fields
+    )
+    assert canonical_signal_event_id(baseline) != canonical_signal_event_id(next_version)
+    assert canonical_signal_event_id(baseline) != canonical_signal_event_id(other_session)
 
 
 async def test_record_conversation_signals_appends_events() -> None:
@@ -119,6 +175,50 @@ async def test_record_conversation_signals_is_idempotent_on_redelivery() -> None
     assert len(first) == 2
     assert [event.event_id for event in retry] == [event.event_id for event in first]
     assert len(session.events) == 3  # SESSION_ENDED + topic + goal, no duplicates
+
+
+async def test_records_canonical_silence_payload_post_terminal() -> None:
+    repo = InMemoryGovernanceRepository()
+    session = Session.open("call-signal", uuid4(), datetime.now(UTC))
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    await repo.save_session(session)
+
+    results = await RecordConversationSignals(repo).execute("call-signal", [_silence_command()])
+
+    assert len(results) == 1
+    event = results[0]
+    assert event.event_type is EventType.CONVERSATION_SILENCE_DETECTED
+    assert event.payload == {
+        **_silence_command().payload,
+        "identity": str(event.event_id),
+    }
+    assert event.sequence_number == 2
+
+
+async def test_existing_silence_type_short_circuits_new_detector_versions() -> None:
+    repo = InMemoryGovernanceRepository()
+    session = Session.open("call-signal", uuid4(), datetime.now(UTC))
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    await repo.save_session(session)
+    recorder = RecordConversationSignals(repo)
+
+    first = await recorder.execute("call-signal", [_silence_command()])
+    retry = await recorder.execute(
+        "call-signal",
+        [_silence_command(detector_version="assistant-user-interior-gap/v2", count=3)],
+    )
+
+    assert retry == first
+    assert (
+        len(
+            [
+                event
+                for event in session.events
+                if event.event_type is EventType.CONVERSATION_SILENCE_DETECTED
+            ]
+        )
+        == 1
+    )
 
 
 async def test_record_conversation_signals_session_not_found_is_noop(
