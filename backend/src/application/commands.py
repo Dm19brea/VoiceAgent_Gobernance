@@ -57,7 +57,7 @@ class ConversationContentCommand:
 
 @dataclass(frozen=True, slots=True)
 class ConversationSignalCommand:
-    """A retry-safe post-terminal LLM-judge signal (topic change / goal verdict).
+    """A retry-safe post-terminal derived conversation signal.
 
     ``identity_fields`` intentionally contains only the stable outcome fields
     (topic count, goal verdict) — never ``reason`` text, timestamps, or raw

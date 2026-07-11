@@ -288,6 +288,43 @@ def _report_payload(messages_open_ai_formatted: list[dict[str, object]]) -> dict
     }
 
 
+def _timed_report_payload(
+    *,
+    formatted: list[dict[str, object]],
+    raw: list[dict[str, object]],
+) -> dict[str, object]:
+    return {
+        "report": {"ended_reason": "ok"},
+        "artifact": {
+            "messagesOpenAIFormatted": formatted,
+            "messages": raw,
+        },
+    }
+
+
+async def _persist_timed_call(
+    db_session: AsyncSession,
+    *,
+    session_id: str,
+    assistant_id: str,
+    formatted: list[dict[str, object]],
+    raw: list[dict[str, object]],
+) -> SqlAlchemyGovernanceRepository:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id=assistant_id)
+    await repo.add_agent(agent)
+    session = Session.open(session_id, agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _timed_report_payload(formatted=formatted, raw=raw),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+    return repo
+
+
 async def test_content_events_derived_after_evidence_and_evaluation_observations(
     db_session: AsyncSession,
 ) -> None:
@@ -332,8 +369,7 @@ async def test_content_events_derived_after_evidence_and_evaluation_observations
     )
     content_indexes = [i for i, e in enumerate(reloaded.events) if e in content_events]
     assert all(i > marker_index for i in content_indexes)
-    assert content_events[0].sequence_number == len(reloaded.events) - 1
-    assert content_events[1].sequence_number == len(reloaded.events)
+    assert content_events[1].sequence_number == content_events[0].sequence_number + 1
 
 
 async def test_missing_messages_open_ai_formatted_produces_zero_content_events(
@@ -499,6 +535,170 @@ async def test_conversation_signals_run_after_conversation_content(
     assert signal_indexes
     assert all(i > content_index for i in signal_indexes)
     assert len(fake_judge.calls) == 1
+
+
+async def test_silence_pipeline_aggregates_intervals_once_with_chronological_timestamp(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = await _persist_timed_call(
+        db_session,
+        session_id="call-silence",
+        assistant_id="asst-silence",
+        formatted=[
+            {"role": "assistant", "content": "First question?"},
+            {"role": "user", "content": "First answer."},
+            {"role": "assistant", "content": "Second question?"},
+            {"role": "user", "content": "Second answer."},
+        ],
+        raw=[
+            {"role": "bot", "time": 1000, "endTime": 2000},
+            {"role": "user", "time": 8000, "endTime": 9000},
+            {"role": "bot", "time": 10000, "endTime": 11000},
+            {"role": "user", "time": 19000, "endTime": 20000},
+        ],
+    )
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_info_only_verdict()),
+    )
+
+    await build_session_evidences_async("call-silence")
+    await build_session_evidences_async("call-silence")
+
+    reloaded = await repo.get_session("call-silence")
+    assert reloaded is not None
+    silence_events = [
+        event
+        for event in reloaded.events
+        if event.event_type is EventType.CONVERSATION_SILENCE_DETECTED
+    ]
+    assert len(silence_events) == 1
+    silence = silence_events[0]
+    assert silence.payload["count"] == 2
+    assert len(silence.payload["intervals"]) == 2
+    assert silence.payload["threshold_ms"] == 6000
+    assert silence.payload["detector_version"] == "assistant-user-interior-gap/v1"
+    assert silence.timestamp == datetime.fromtimestamp(19, tz=UTC)
+    assert silence.timestamp < END
+    assert silence.sequence_number > next(
+        event.sequence_number
+        for event in reloaded.events
+        if event.event_type is EventType.SESSION_ENDED
+    )
+    assert silence.sequence_number < next(
+        event.sequence_number
+        for event in reloaded.events
+        if event.event_type is EventType.CONVERSATION_GOAL_ACHIEVED
+    )
+
+
+async def test_silence_pipeline_emits_nothing_without_qualifying_gap(
+    db_session: AsyncSession,
+) -> None:
+    repo = await _persist_timed_call(
+        db_session,
+        session_id="call-no-silence",
+        assistant_id="asst-no-silence",
+        formatted=[
+            {"role": "assistant", "content": "Question?"},
+            {"role": "user", "content": "Answer."},
+        ],
+        raw=[
+            {"role": "bot", "time": 1000, "endTime": 2000},
+            {"role": "user", "time": 7999, "endTime": 9000},
+        ],
+    )
+
+    await build_session_evidences_async("call-no-silence")
+
+    reloaded = await repo.get_session("call-no-silence")
+    assert reloaded is not None
+    assert all(
+        event.event_type is not EventType.CONVERSATION_SILENCE_DETECTED for event in reloaded.events
+    )
+
+
+async def test_malformed_silence_timing_isolated_while_judge_completes(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = await _persist_timed_call(
+        db_session,
+        session_id="call-silence-malformed",
+        assistant_id="asst-malformed",
+        formatted=[
+            {"role": "assistant", "content": "Question?"},
+            {"role": "user", "content": "Answer."},
+        ],
+        raw=[
+            {"role": "bot", "time": "not-a-timestamp", "endTime": None},
+            {"role": "user", "time": 8000, "endTime": 9000},
+        ],
+    )
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_info_only_verdict()),
+    )
+
+    await build_session_evidences_async("call-silence-malformed")
+
+    reloaded = await repo.get_session("call-silence-malformed")
+    assert reloaded is not None
+    assert all(
+        event.event_type is not EventType.CONVERSATION_SILENCE_DETECTED for event in reloaded.events
+    )
+    assert any(
+        event.event_type is EventType.CONVERSATION_GOAL_ACHIEVED for event in reloaded.events
+    )
+
+
+async def test_silence_failure_isolated_from_content_scoring_and_judge(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: LogCaptureFixture,
+) -> None:
+    repo = await _persist_timed_call(
+        db_session,
+        session_id="call-silence-fail",
+        assistant_id="asst-silence-fail",
+        formatted=[
+            {"role": "assistant", "content": "Question?"},
+            {"role": "user", "content": "Answer."},
+        ],
+        raw=[
+            {"role": "bot", "time": 1000, "endTime": 2000},
+            {"role": "user", "time": 8000, "endTime": 9000},
+        ],
+    )
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("silence detector failed")
+
+    monkeypatch.setattr(tasks_module, "detect_user_response_silence", _boom)
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_info_only_verdict()),
+    )
+
+    count = await build_session_evidences_async("call-silence-fail")
+
+    assert count > 0
+    assert caplog.text.count("Failed to record conversation silence") == 1
+    reloaded = await repo.get_session("call-silence-fail")
+    assert reloaded is not None
+    assert any(
+        event.event_type is EventType.CONVERSATION_AGENT_RESPONSE for event in reloaded.events
+    )
+    assert any(
+        event.event_type is EventType.CONVERSATION_GOAL_ACHIEVED for event in reloaded.events
+    )
+    assert all(
+        event.event_type is not EventType.CONVERSATION_SILENCE_DETECTED for event in reloaded.events
+    )
 
 
 async def test_conversation_signals_success_path_writes_topic_and_goal_events(

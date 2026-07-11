@@ -8,6 +8,8 @@ from sqlalchemy import Table, UniqueConstraint, insert, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from src.application.commands import ConversationSignalCommand
+from src.application.use_cases.record_conversation_signals import RecordConversationSignals
 from src.domain.agent import Agent
 from src.domain.enums import EventType, SessionStatus, Source
 from src.domain.event import Event
@@ -259,6 +261,62 @@ async def test_append_event_is_idempotent_for_a_duplicate_canonical_identity(
     assert reloaded is not None
     assert [event.event_id for event in reloaded.events].count(observation.event_id) == 1
     assert reloaded.status is SessionStatus.ENDED
+
+
+async def test_concurrent_silence_recorders_append_one_next_sequence_without_collision(
+    db_session: AsyncSession,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-silence-lock")
+    await repo.add_agent(agent)
+    session = Session.open("call-silence-lock", agent.agent_id, datetime.now(UTC))
+    session.record(EventType.SESSION_ENDED, Source.PLATFORM, datetime.now(UTC), {})
+    await repo.save_session(session)
+    await db_session.commit()
+
+    command = ConversationSignalCommand(
+        session_id=session.session_id,
+        event_type=EventType.CONVERSATION_SILENCE_DETECTED,
+        source=Source.PLATFORM,
+        timestamp=datetime.now(UTC),
+        identity_fields={"detector_version": "assistant-user-interior-gap/v1"},
+        payload={
+            "count": 1,
+            "threshold_ms": 6000,
+            "detector_version": "assistant-user-interior-gap/v1",
+            "intervals": [
+                {
+                    "assistant_turn_index": 0,
+                    "user_turn_index": 1,
+                    "started_at": "2026-07-09T10:00:01+00:00",
+                    "ended_at": "2026-07-09T10:00:07+00:00",
+                    "duration_ms": 6000,
+                }
+            ],
+        },
+    )
+    bind = db_session.bind
+    assert isinstance(bind, AsyncEngine)
+    maker = async_sessionmaker(bind, expire_on_commit=False)
+
+    async def record_once() -> None:
+        async with maker() as worker_session:
+            worker_repo = SqlAlchemyGovernanceRepository(worker_session)
+            await RecordConversationSignals(worker_repo).execute(session.session_id, [command])
+            await worker_session.commit()
+
+    await asyncio.gather(record_once(), record_once())
+
+    reloaded = await repo.get_session(session.session_id)
+    assert reloaded is not None
+    silence_events = [
+        event
+        for event in reloaded.events
+        if event.event_type is EventType.CONVERSATION_SILENCE_DETECTED
+    ]
+    assert len(silence_events) == 1
+    assert silence_events[0].sequence_number == 2
+    assert len({event.sequence_number for event in reloaded.events}) == len(reloaded.events)
 
 
 async def test_session_lock_serializes_system_and_marker_sequence_assignment(

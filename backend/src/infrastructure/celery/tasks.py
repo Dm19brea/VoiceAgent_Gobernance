@@ -10,9 +10,20 @@ from src.adapters.llm.openrouter_judge import OpenRouterConversationJudge
 from src.adapters.rest.vapi_mapping import (
     build_judge_transcript,
     derive_conversation_content,
+    derive_conversation_timed_turns,
     verdict_to_signal_commands,
 )
-from src.application.commands import ConversationContentCommand, SystemObservationCommand
+from src.application.commands import (
+    ConversationContentCommand,
+    ConversationSignalCommand,
+    SystemObservationCommand,
+)
+from src.application.use_cases.detect_conversation_silence import (
+    SILENCE_DETECTOR_VERSION,
+    SILENCE_THRESHOLD_MS,
+    SilenceAggregate,
+    detect_user_response_silence,
+)
 from src.application.use_cases.record_conversation_content import RecordConversationContent
 from src.application.use_cases.record_conversation_signals import RecordConversationSignals
 from src.application.use_cases.record_evaluation_triggered import RecordEvaluationTriggered
@@ -79,6 +90,7 @@ async def build_session_evidences_async(session_id: str) -> int:
                 ),
             )
             await _record_conversation_content(session_id, governance_session)
+            await _record_conversation_silence(session_id, governance_session)
             await _record_conversation_signals(session_id, governance_session)
             return len(evidences)
     finally:
@@ -243,6 +255,61 @@ async def _record_conversation_content(session_id: str, governance_session: Sess
             await engine.dispose()
     except Exception:
         logger.exception("Failed to record conversation content: session=%s", session_id)
+
+
+def _silence_payload(aggregate: SilenceAggregate) -> dict[str, object]:
+    return {
+        "count": aggregate.count,
+        "threshold_ms": SILENCE_THRESHOLD_MS,
+        "detector_version": SILENCE_DETECTOR_VERSION,
+        "intervals": [
+            {
+                "assistant_turn_index": interval.assistant_turn_index,
+                "user_turn_index": interval.user_turn_index,
+                "started_at": interval.started_at.isoformat(),
+                "ended_at": interval.ended_at.isoformat(),
+                "duration_ms": interval.duration_ms,
+            }
+            for interval in aggregate.intervals
+        ],
+    }
+
+
+async def _record_conversation_silence(session_id: str, governance_session: Session) -> None:
+    """Persist one post-terminal silence aggregate in an isolated transaction."""
+    try:
+        terminal_event = _terminal_event(governance_session)
+        if terminal_event is None:
+            return
+
+        turns = derive_conversation_timed_turns(terminal_event.payload)
+        if turns is None:
+            return
+        aggregate = detect_user_response_silence(turns)
+        if aggregate is None:
+            return
+
+        command = ConversationSignalCommand(
+            session_id=session_id,
+            event_type=EventType.CONVERSATION_SILENCE_DETECTED,
+            source=Source.PLATFORM,
+            timestamp=aggregate.detected_at,
+            # This version is immutable. Future versions only process calls with
+            # no existing silence evidence; computed details never enter identity.
+            identity_fields={"detector_version": SILENCE_DETECTOR_VERSION},
+            payload=_silence_payload(aggregate),
+        )
+        engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
+        try:
+            maker = async_sessionmaker(engine, expire_on_commit=False)
+            async with maker() as silence_session:
+                repository = SqlAlchemyGovernanceRepository(silence_session)
+                await RecordConversationSignals(repository).execute(session_id, [command])
+                await silence_session.commit()
+        finally:
+            await engine.dispose()
+    except Exception:
+        logger.exception("Failed to record conversation silence: session=%s", session_id)
 
 
 async def _record_conversation_signals(session_id: str, governance_session: Session) -> None:

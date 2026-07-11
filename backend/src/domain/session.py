@@ -23,6 +23,7 @@ _CONVERSATION_CONTENT_EVENTS = frozenset(
 )
 _SIGNAL_EVENTS = frozenset(
     {
+        EventType.CONVERSATION_SILENCE_DETECTED,
         EventType.CONVERSATION_TOPIC_CHANGE,
         EventType.CONVERSATION_GOAL_ACHIEVED,
         EventType.CONVERSATION_GOAL_FAILED,
@@ -179,7 +180,7 @@ class Session:
         payload: dict[str, Any],
         event_id: UUID | None = None,
     ) -> Event:
-        """Append a post-terminal LLM-judge signal event (topic change / goal verdict).
+        """Append an allowed post-terminal derived conversation signal event.
 
         Derived from the full transcript after the session has closed, so this
         mirrors ``append_conversation_content``: valid only once the session is

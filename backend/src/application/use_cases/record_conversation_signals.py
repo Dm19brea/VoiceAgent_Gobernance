@@ -8,6 +8,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from src.application.commands import ConversationSignalCommand
 from src.application.ports.governance_repository import GovernanceRepository
+from src.domain.enums import EventType
 from src.domain.event import Event
 
 logger = logging.getLogger(__name__)
@@ -23,9 +24,12 @@ def canonical_signal_event_id(command: ConversationSignalCommand) -> UUID:
     delivery identifiers — so reprocessing the same report or a provider
     redelivery is a no-op.
     """
+    identity = command.identity_fields
+    if command.event_type is EventType.CONVERSATION_SILENCE_DETECTED:
+        identity = {"detector_version": command.identity_fields.get("detector_version")}
     canonical: dict[str, Any] = {
         "event_type": command.event_type.value,
-        "identity": command.identity_fields,
+        "identity": identity,
         "schema_version": _IDENTITY_SCHEMA_VERSION,
         "session_id": command.session_id,
     }
@@ -56,6 +60,17 @@ class RecordConversationSignals:
 
         results: list[Event] = []
         for command in commands:
+            if command.event_type is EventType.CONVERSATION_SILENCE_DETECTED:
+                # Detector versions are immutable and apply only to calls without
+                # historical silence evidence. A type-based check under the
+                # session row lock prevents reprocessing across version bumps.
+                existing_silence = next(
+                    (event for event in session.events if event.event_type is command.event_type),
+                    None,
+                )
+                if existing_silence is not None:
+                    results.append(existing_silence)
+                    continue
             event_id = canonical_signal_event_id(command)
             existing = next((event for event in session.events if event.event_id == event_id), None)
             if existing is not None:
