@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from src.domain.enums import Dimension, EventType, EvidenceType
 from src.domain.event import Event
 from src.domain.evidence import Evidence
@@ -26,6 +28,66 @@ def build_evidences(session: Session) -> list[Evidence]:
     evidences.append(_turns(session.session_id, "total_turns", "turns", conversation_events))
     evidences.append(_turns(session.session_id, "agent_turns", "agent turns", agent_events))
     evidences.append(_turns(session.session_id, "user_turns", "user turns", user_events))
+
+    goal_achieved_events = [
+        e for e in events if e.event_type is EventType.CONVERSATION_GOAL_ACHIEVED
+    ]
+    goal_failed_events = [e for e in events if e.event_type is EventType.CONVERSATION_GOAL_FAILED]
+    goal_source_events = goal_achieved_events or goal_failed_events
+    evidences.append(
+        Evidence(
+            session_id=session.session_id,
+            evidence_type=EvidenceType.INFERRED,
+            criterion="goal_completion",
+            conclusion=(
+                "The session reached its goal"
+                if goal_achieved_events
+                else "The session did not reach its goal"
+            ),
+            dimension=Dimension.CONVERSATIONAL,
+            source_events=[e.event_id for e in goal_source_events],
+            value=1.0 if goal_achieved_events else 0.0,
+        )
+    )
+
+    interruption_events = [
+        e for e in events if e.event_type is EventType.CONVERSATION_INTERRUPTION_DETECTED
+    ]
+    completed_turns = len(agent_events) - len(interruption_events)
+    turn_completion_conclusion = (
+        "No agent turns were recorded, so turn completion rate cannot be computed"
+        if not agent_events
+        else f"{completed_turns} of {len(agent_events)} agent turns completed without interruption"
+    )
+    evidences.append(
+        _rate(
+            session.session_id,
+            criterion="turn_completion_rate",
+            conclusion=turn_completion_conclusion,
+            numerator=completed_turns,
+            denominator=len(agent_events),
+            source_events=[e.event_id for e in interruption_events],
+        )
+    )
+
+    silence_events = [e for e in events if e.event_type is EventType.CONVERSATION_SILENCE_DETECTED]
+    silence_count = silence_events[0].payload.get("count", 0) if silence_events else 0
+    total_turns = len(agent_events) + len(user_events)
+    silence_conclusion = (
+        "No agent or user turns were recorded, so silence rate cannot be computed"
+        if not total_turns
+        else f"{silence_count} prolonged silences out of {total_turns} total turns"
+    )
+    evidences.append(
+        _rate(
+            session.session_id,
+            criterion="prolonged_silence_rate",
+            conclusion=silence_conclusion,
+            numerator=silence_count,
+            denominator=total_turns,
+            source_events=[e.event_id for e in silence_events],
+        )
+    )
 
     started_events = [e for e in events if e.event_type is EventType.SESSION_STARTED]
     ended_events = [e for e in events if e.event_type in TERMINAL_EVENT_TYPES]
@@ -86,4 +148,24 @@ def _turns(session_id: str, criterion: str, label: str, events: list[Event]) -> 
         dimension=Dimension.CONVERSATIONAL,
         source_events=[e.event_id for e in events],
         value=float(len(events)),
+    )
+
+
+def _rate(
+    session_id: str,
+    criterion: str,
+    conclusion: str,
+    numerator: int,
+    denominator: int,
+    source_events: list[UUID],
+) -> Evidence:
+    value = 0.0 if denominator == 0 else numerator / denominator
+    return Evidence(
+        session_id=session_id,
+        evidence_type=EvidenceType.INFERRED,
+        criterion=criterion,
+        conclusion=conclusion,
+        dimension=Dimension.CONVERSATIONAL,
+        source_events=source_events,
+        value=value,
     )
