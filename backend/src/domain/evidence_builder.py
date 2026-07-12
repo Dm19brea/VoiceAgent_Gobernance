@@ -168,6 +168,39 @@ def build_evidences(session: Session) -> list[Evidence]:
                 )
             )
 
+    flag_events = [e for e in events if e.event_type is EventType.SYSTEM_FLAG_RAISED]
+    evidences.append(
+        _turns(
+            session.session_id,
+            "governance_flag_count",
+            "governance flags",
+            flag_events,
+            dimension=Dimension.RISK,
+        )
+    )
+
+    failed_events = [e for e in events if e.event_type is EventType.SESSION_FAILED]
+    unrecovered_error = bool(error_events and failed_events)
+    evidences.append(
+        Evidence(
+            session_id=session.session_id,
+            evidence_type=EvidenceType.INFERRED,
+            criterion="unrecovered_error_present",
+            conclusion=(
+                "The session ended with an unrecovered error"
+                if unrecovered_error
+                else "The session had no unrecovered error"
+            ),
+            dimension=Dimension.RISK,
+            source_events=(
+                [e.event_id for e in error_events] + [e.event_id for e in failed_events]
+                if unrecovered_error
+                else []
+            ),
+            value=1.0 if unrecovered_error else 0.0,
+        )
+    )
+
     return evidences
 
 

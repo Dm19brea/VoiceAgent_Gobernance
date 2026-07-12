@@ -380,6 +380,142 @@ def test_technical_error_rate_zero_denominator_guard() -> None:
     )
 
 
+def test_governance_flag_count_with_flags() -> None:
+    session = _session_with_events(
+        *[(EventType.SYSTEM_FLAG_RAISED, Source.SYSTEM, {}) for _ in range(2)],
+    )
+    flag_events = [e for e in session.events if e.event_type is EventType.SYSTEM_FLAG_RAISED]
+
+    evidences = _by_criterion(build_evidences(session))
+
+    flags = evidences["governance_flag_count"]
+    assert flags.criterion == "governance_flag_count"
+    assert flags.dimension is Dimension.RISK
+    assert flags.evidence_type is EvidenceType.INFERRED
+    assert flags.value == pytest.approx(2.0)
+    assert {e.event_id for e in flag_events} == set(flags.source_events)
+
+
+def test_governance_flag_count_zero_without_flags() -> None:
+    session = _session_with_events()
+
+    evidences = _by_criterion(build_evidences(session))
+
+    flags = evidences["governance_flag_count"]
+    assert flags.value == pytest.approx(0.0)
+    assert flags.source_events == []
+
+
+def test_unrecovered_error_present_with_error_and_failed_terminal() -> None:
+    session = _session_with_error_and_terminal(failed=True)
+
+    evidences = _by_criterion(build_evidences(session))
+
+    unrecovered = evidences["unrecovered_error_present"]
+    assert unrecovered.criterion == "unrecovered_error_present"
+    assert unrecovered.dimension is Dimension.RISK
+    assert unrecovered.evidence_type is EvidenceType.INFERRED
+    assert unrecovered.value == pytest.approx(1.0)
+    assert unrecovered.conclusion == "The session ended with an unrecovered error"
+
+    error_events = [e for e in session.events if e.event_type is EventType.SYSTEM_ERROR]
+    failed_events = [e for e in session.events if e.event_type is EventType.SESSION_FAILED]
+    expected_source_events = {e.event_id for e in error_events} | {
+        e.event_id for e in failed_events
+    }
+    assert set(unrecovered.source_events) == expected_source_events
+
+
+def test_unrecovered_error_present_zero_with_clean_terminal() -> None:
+    session = _session_with_error_and_terminal(failed=False)
+
+    evidences = _by_criterion(build_evidences(session))
+
+    unrecovered = evidences["unrecovered_error_present"]
+    assert unrecovered.value == pytest.approx(0.0)
+    assert unrecovered.conclusion == "The session had no unrecovered error"
+
+
+def test_unrecovered_error_present_zero_without_error_events() -> None:
+    session = _failed_session()
+
+    evidences = _by_criterion(build_evidences(session))
+
+    unrecovered = evidences["unrecovered_error_present"]
+    assert unrecovered.value == pytest.approx(0.0)
+    assert unrecovered.source_events == []
+
+
+def _session_with_error_and_terminal(*, failed: bool) -> Session:
+    session = Session.open("call-1", uuid4(), START)
+    session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
+    session.record(EventType.SYSTEM_ERROR, Source.SYSTEM, START, {})
+    terminal_type = EventType.SESSION_FAILED if failed else EventType.SESSION_ENDED
+    session.record(terminal_type, Source.PLATFORM, END, {})
+    return session
+
+
+def test_risk_evidences_do_not_affect_existing_conversational_and_technical_evidences() -> None:
+    session = _session_with_events(
+        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(4)],
+        *[(EventType.CONVERSATION_USER_INPUT, Source.USER, {}) for _ in range(4)],
+        (EventType.CONVERSATION_GOAL_ACHIEVED, Source.SYSTEM, {}),
+        (EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.SYSTEM, {}),
+        (EventType.CONVERSATION_SILENCE_DETECTED, Source.PLATFORM, {"count": 2}),
+        (EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM, {}),
+        (EventType.SYSTEM_ERROR, Source.SYSTEM, {}),
+    )
+    before = _by_criterion(build_evidences(session))
+
+    session_with_risk = _session_with_events(
+        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(4)],
+        *[(EventType.CONVERSATION_USER_INPUT, Source.USER, {}) for _ in range(4)],
+        (EventType.CONVERSATION_GOAL_ACHIEVED, Source.SYSTEM, {}),
+        (EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.SYSTEM, {}),
+        (EventType.CONVERSATION_SILENCE_DETECTED, Source.PLATFORM, {"count": 2}),
+        (EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM, {}),
+        (EventType.SYSTEM_ERROR, Source.SYSTEM, {}),
+        (EventType.SYSTEM_FLAG_RAISED, Source.SYSTEM, {}),
+    )
+    after = _by_criterion(build_evidences(session_with_risk))
+
+    for criterion in (
+        "total_turns",
+        "agent_turns",
+        "user_turns",
+        "goal_completion",
+        "turn_completion_rate",
+        "prolonged_silence_rate",
+        "model_invocation_count",
+        "technical_error_rate",
+        "session_completed",
+    ):
+        assert before[criterion].dimension == after[criterion].dimension
+        assert before[criterion].value == pytest.approx(after[criterion].value)
+
+    assert "governance_flag_count" in after
+    assert "unrecovered_error_present" in after
+
+
+def test_risk_evidences_coexist_without_duplicate_criteria() -> None:
+    session = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+        (EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM, {}),
+        (EventType.SYSTEM_ERROR, Source.SYSTEM, {}),
+        (EventType.SYSTEM_FLAG_RAISED, Source.SYSTEM, {}),
+    )
+
+    evidences = build_evidences(session)
+    criteria = [e.criterion for e in evidences]
+
+    assert len(criteria) == len(set(criteria))
+    dimensions = {e.dimension for e in evidences}
+    assert Dimension.CONVERSATIONAL in dimensions
+    assert Dimension.TECHNICAL in dimensions
+    assert Dimension.RISK in dimensions
+
+
 def test_technical_and_conversational_evidences_coexist_without_duplicates() -> None:
     session = _session_with_events(
         (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
