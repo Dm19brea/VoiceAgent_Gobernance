@@ -1,3 +1,4 @@
+from math import isfinite
 from uuid import UUID
 
 from src.domain.enums import Dimension, EventType, EvidenceType
@@ -155,6 +156,7 @@ def build_evidences(session: Session) -> list[Evidence]:
             )
         )
         report = ended.payload.get("report") or {}
+        evidences.extend(_turn_latency_evidences(session.session_id, ended, report))
         ended_reason = report.get("ended_reason")
         if ended_reason:
             evidences.append(
@@ -202,6 +204,48 @@ def build_evidences(session: Session) -> list[Evidence]:
     )
 
     return evidences
+
+
+def _turn_latency_evidences(
+    session_id: str, terminal_event: Event, report: object
+) -> list[Evidence]:
+    if not isinstance(report, dict):
+        return []
+    raw_values = report.get("turn_latencies_seconds")
+    if not isinstance(raw_values, list):
+        return []
+    values = [
+        float(value)
+        for value in raw_values
+        if isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and isfinite(value)
+        and value >= 0
+    ]
+    if not values:
+        return []
+
+    source_events = [terminal_event.event_id]
+    return [
+        Evidence(
+            session_id=session_id,
+            evidence_type=EvidenceType.INFERRED,
+            criterion="mean_turn_latency_seconds",
+            conclusion="Mean turn latency derived from the terminal Vapi report",
+            dimension=Dimension.TECHNICAL,
+            source_events=source_events,
+            value=sum(values) / len(values),
+        ),
+        Evidence(
+            session_id=session_id,
+            evidence_type=EvidenceType.INFERRED,
+            criterion="max_turn_latency_seconds",
+            conclusion="Maximum turn latency derived from the terminal Vapi report",
+            dimension=Dimension.TECHNICAL,
+            source_events=source_events.copy(),
+            value=max(values),
+        ),
+    ]
 
 
 def _turns(

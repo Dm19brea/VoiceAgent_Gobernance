@@ -92,6 +92,7 @@ def test_maps_end_of_call_report_with_normalized_report_payload() -> None:
         "ended_reason": "assistant-ended-call",
         "duration_seconds": 42,
         "summary": "Call summary",
+        "turn_latencies_seconds": [],
     }
 
 
@@ -267,6 +268,7 @@ def test_maps_terminal_failure_to_one_stable_system_error_intent() -> None:
         "report": {
             "duration_seconds": 12,
             "summary": "Provider pipeline failed",
+            "turn_latencies_seconds": [],
         },
     }
     assert observation.payload["reason"] == "pipeline-error-openai-llm-failed"

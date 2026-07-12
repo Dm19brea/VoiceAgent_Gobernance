@@ -242,7 +242,33 @@ def _normalise_report(message: dict[str, Any]) -> dict[str, Any]:
         "ended_reason": message.get("endedReason"),
         "duration_seconds": message.get("durationSeconds"),
         "summary": message.get("summary"),
+        "turn_latencies_seconds": _normalise_turn_latencies(message.get("artifact")),
     }
+
+
+def _normalise_turn_latencies(artifact: object) -> list[float]:
+    if not isinstance(artifact, dict):
+        return []
+    performance_metrics = artifact.get("performanceMetrics")
+    if not isinstance(performance_metrics, dict):
+        return []
+    turn_latencies = performance_metrics.get("turnLatencies")
+    if not isinstance(turn_latencies, list):
+        return []
+
+    values: list[float] = []
+    for entry in turn_latencies:
+        if not isinstance(entry, dict):
+            continue
+        value = entry.get("turnLatency")
+        if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and isfinite(value)
+            and value >= 0
+        ):
+            values.append(float(value))
+    return values
 
 
 def _resolve(vapi_type: str, message: dict[str, Any]) -> tuple[EventType, Source] | None:
