@@ -70,9 +70,7 @@ def build_evidences(session: Session) -> list[Evidence]:
         )
     )
 
-    silence_events = [
-        e for e in events if e.event_type is EventType.CONVERSATION_SILENCE_DETECTED
-    ]
+    silence_events = [e for e in events if e.event_type is EventType.CONVERSATION_SILENCE_DETECTED]
     silence_count = silence_events[0].payload.get("count", 0) if silence_events else 0
     total_turns = len(agent_events) + len(user_events)
     silence_conclusion = (
