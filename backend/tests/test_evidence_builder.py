@@ -94,9 +94,7 @@ def test_builds_mean_and_max_turn_latency_evidences() -> None:
     assert mean.source_events == maximum.source_events == [terminal.event_id]
 
 
-@pytest.mark.parametrize(
-    "latencies", [None, [], ["invalid", -1], [float("nan"), float("inf")]]
-)
+@pytest.mark.parametrize("latencies", [None, [], ["invalid", -1], [float("nan"), float("inf")]])
 def test_turn_latency_evidences_are_atomically_absent_without_valid_values(
     latencies: object,
 ) -> None:
