@@ -33,3 +33,33 @@ def test_report_is_present_but_empty_when_fields_absent() -> None:
     report = result.payload["report"]
     assert report["ended_reason"] is None
     assert report["duration_seconds"] is None
+    assert report["turn_latencies_seconds"] == []
+
+
+def test_normalises_valid_turn_latencies_in_seconds() -> None:
+    result = map_vapi_event(
+        _end_of_call(
+            {"artifact": {"performanceMetrics": {"turnLatencies": [
+                {"turnLatency": 0.5}, {"turnLatency": 1}, {"turnLatency": 1.5}
+            ]}}}
+        )
+    )
+
+    assert result is not None
+    assert result.payload["report"]["turn_latencies_seconds"] == [0.5, 1.0, 1.5]
+
+
+def test_filters_invalid_turn_latencies_without_coercion() -> None:
+    result = map_vapi_event(
+        _end_of_call(
+            {"artifact": {"performanceMetrics": {"turnLatencies": [
+                {"turnLatency": 0.8}, {"turnLatency": "1.0"},
+                {"turnLatency": True}, {"turnLatency": -1},
+                {"turnLatency": float("nan")}, {"turnLatency": float("inf")},
+                {"turnLatency": 1.2}, None,
+            ]}}}
+        )
+    )
+
+    assert result is not None
+    assert result.payload["report"]["turn_latencies_seconds"] == [0.8, 1.2]

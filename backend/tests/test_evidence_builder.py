@@ -79,6 +79,49 @@ def test_missing_ended_reason_does_not_crash() -> None:
     assert "session_completed" in evidences
 
 
+def test_builds_mean_and_max_turn_latency_evidences() -> None:
+    session = _closed_session(report={"turn_latencies_seconds": [0.5, 1.0, 1.5]})
+    terminal = session.events[-1]
+
+    evidences = _by_criterion(build_evidences(session))
+
+    mean = evidences["mean_turn_latency_seconds"]
+    maximum = evidences["max_turn_latency_seconds"]
+    assert mean.value == pytest.approx(1.0)
+    assert maximum.value == pytest.approx(1.5)
+    assert mean.evidence_type is EvidenceType.INFERRED
+    assert maximum.dimension is Dimension.TECHNICAL
+    assert mean.source_events == maximum.source_events == [terminal.event_id]
+
+
+@pytest.mark.parametrize(
+    "latencies", [None, [], ["invalid", -1], [float("nan"), float("inf")]]
+)
+def test_turn_latency_evidences_are_atomically_absent_without_valid_values(
+    latencies: object,
+) -> None:
+    report = {} if latencies is None else {"turn_latencies_seconds": latencies}
+
+    evidences = _by_criterion(build_evidences(_closed_session(report=report)))
+
+    assert "mean_turn_latency_seconds" not in evidences
+    assert "max_turn_latency_seconds" not in evidences
+
+
+def test_single_turn_latency_and_outlier_are_not_trimmed() -> None:
+    single = _by_criterion(
+        build_evidences(_closed_session(report={"turn_latencies_seconds": [0.75]}))
+    )
+    outlier = _by_criterion(
+        build_evidences(_closed_session(report={"turn_latencies_seconds": [0.4, 0.6, 12.0]}))
+    )
+
+    assert single["mean_turn_latency_seconds"].value == pytest.approx(0.75)
+    assert single["max_turn_latency_seconds"].value == pytest.approx(0.75)
+    assert outlier["mean_turn_latency_seconds"].value == pytest.approx(13.0 / 3)
+    assert outlier["max_turn_latency_seconds"].value == pytest.approx(12.0)
+
+
 def test_failed_session_yields_session_failed_criterion_not_completed() -> None:
     evidences = _by_criterion(
         build_evidences(

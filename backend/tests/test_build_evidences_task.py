@@ -69,6 +69,41 @@ async def test_rebuilding_evidences_does_not_duplicate(db_session: AsyncSession)
     assert len(evidences) == first
 
 
+async def test_task_persists_turn_latency_aggregates_idempotently(
+    db_session: AsyncSession,
+) -> None:
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-latency")
+    await repo.add_agent(agent)
+    session = Session.open("call-latency", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        {"report": {"ended_reason": "ok", "turn_latencies_seconds": [0.5, 1.5]}},
+    )
+    terminal_event_id = session.events[-1].event_id
+    await repo.save_session(session)
+    await db_session.commit()
+
+    await build_session_evidences_async("call-latency")
+    await build_session_evidences_async("call-latency")
+
+    evidences = await repo.get_evidences_by_session("call-latency")
+    latency_evidences = {
+        evidence.criterion: evidence
+        for evidence in evidences
+        if evidence.criterion in {"mean_turn_latency_seconds", "max_turn_latency_seconds"}
+    }
+    assert set(latency_evidences) == {
+        "mean_turn_latency_seconds",
+        "max_turn_latency_seconds",
+    }
+    assert latency_evidences["mean_turn_latency_seconds"].value == pytest.approx(1.0)
+    assert latency_evidences["max_turn_latency_seconds"].value == pytest.approx(1.5)
+    assert all(e.source_events == [terminal_event_id] for e in latency_evidences.values())
+
+
 async def test_task_records_evaluation_triggered_marker_before_building_evidences(
     db_session: AsyncSession,
 ) -> None:
