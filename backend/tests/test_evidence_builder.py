@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 from src.domain.enums import Dimension, EventType, EvidenceType, Source
 from src.domain.evidence import Evidence
 from src.domain.evidence_builder import build_evidences
@@ -142,7 +144,7 @@ def test_goal_achieved_yields_goal_completion_evidence() -> None:
     evidences = _by_criterion(build_evidences(session))
 
     goal = evidences["goal_completion"]
-    assert goal.value == 1.0
+    assert goal.value == pytest.approx(1.0)
     assert goal.evidence_type is EvidenceType.INFERRED
     assert goal.dimension is Dimension.CONVERSATIONAL
     assert goal_event.event_id in goal.source_events
@@ -155,7 +157,7 @@ def test_goal_failed_yields_zero_goal_completion_evidence() -> None:
     evidences = _by_criterion(build_evidences(session))
 
     goal = evidences["goal_completion"]
-    assert goal.value == 0.0
+    assert goal.value == pytest.approx(0.0)
     assert goal_event.event_id in goal.source_events
 
 
@@ -165,7 +167,7 @@ def test_no_goal_event_yields_zero_goal_completion_with_empty_source_events() ->
     evidences = _by_criterion(build_evidences(session))
 
     goal = evidences["goal_completion"]
-    assert goal.value == 0.0
+    assert goal.value == pytest.approx(0.0)
     assert goal.source_events == []
 
 
@@ -178,7 +180,7 @@ def test_turn_completion_rate_accounts_for_interruptions() -> None:
     evidences = _by_criterion(build_evidences(session))
 
     rate = evidences["turn_completion_rate"]
-    assert rate.value == 0.75
+    assert rate.value == pytest.approx(0.75)
     assert rate.evidence_type is EvidenceType.INFERRED
     assert rate.dimension is Dimension.CONVERSATIONAL
 
@@ -190,7 +192,7 @@ def test_turn_completion_rate_is_one_without_interruptions() -> None:
 
     evidences = _by_criterion(build_evidences(session))
 
-    assert evidences["turn_completion_rate"].value == 1.0
+    assert evidences["turn_completion_rate"].value == pytest.approx(1.0)
 
 
 def test_turn_completion_rate_zero_denominator_guard() -> None:
@@ -199,7 +201,7 @@ def test_turn_completion_rate_zero_denominator_guard() -> None:
     evidences = _by_criterion(build_evidences(session))
 
     rate = evidences["turn_completion_rate"]
-    assert rate.value == 0.0
+    assert rate.value == pytest.approx(0.0)
     assert "agent" in rate.conclusion.lower()
 
 
@@ -213,7 +215,7 @@ def test_prolonged_silence_rate_with_aggregated_event() -> None:
     evidences = _by_criterion(build_evidences(session))
 
     rate = evidences["prolonged_silence_rate"]
-    assert rate.value == 0.25
+    assert rate.value == pytest.approx(0.25)
     assert rate.evidence_type is EvidenceType.INFERRED
     assert rate.dimension is Dimension.CONVERSATIONAL
 
@@ -227,7 +229,7 @@ def test_prolonged_silence_rate_zero_without_silence_event() -> None:
     evidences = _by_criterion(build_evidences(session))
 
     rate = evidences["prolonged_silence_rate"]
-    assert rate.value == 0.0
+    assert rate.value == pytest.approx(0.0)
     assert rate.source_events == []
 
 
@@ -237,7 +239,7 @@ def test_prolonged_silence_rate_zero_denominator_guard() -> None:
     evidences = _by_criterion(build_evidences(session))
 
     rate = evidences["prolonged_silence_rate"]
-    assert rate.value == 0.0
+    assert rate.value == pytest.approx(0.0)
     assert "turn" in rate.conclusion.lower()
 
 
@@ -257,7 +259,7 @@ def test_mvp_turn_evidences_unaffected_by_new_conversational_evidences() -> None
     for criterion in ("total_turns", "agent_turns", "user_turns"):
         assert before[criterion].criterion == after[criterion].criterion
         assert before[criterion].dimension == after[criterion].dimension
-        assert before[criterion].value == after[criterion].value
+        assert before[criterion].value == pytest.approx(after[criterion].value)
         assert len(before[criterion].source_events) == len(after[criterion].source_events)
 
 
@@ -271,7 +273,7 @@ def test_turn_started_and_ended_events_do_not_affect_turn_counts() -> None:
 
     evidences = _by_criterion(build_evidences(session))
 
-    assert evidences["total_turns"].value == 2.0
-    assert evidences["agent_turns"].value == 1.0
-    assert evidences["user_turns"].value == 1.0
-    assert evidences["turn_completion_rate"].value == 1.0
+    assert evidences["total_turns"].value == pytest.approx(2.0)
+    assert evidences["agent_turns"].value == pytest.approx(1.0)
+    assert evidences["user_turns"].value == pytest.approx(1.0)
+    assert evidences["turn_completion_rate"].value == pytest.approx(1.0)
