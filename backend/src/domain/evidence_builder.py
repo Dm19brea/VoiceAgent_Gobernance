@@ -70,9 +70,41 @@ def build_evidences(session: Session) -> list[Evidence]:
         )
     )
 
+    model_invocation_events = [
+        e for e in events if e.event_type is EventType.SYSTEM_MODEL_INVOCATION
+    ]
+    evidences.append(
+        _turns(
+            session.session_id,
+            "model_invocation_count",
+            "model invocations",
+            model_invocation_events,
+            dimension=Dimension.TECHNICAL,
+        )
+    )
+
     silence_events = [e for e in events if e.event_type is EventType.CONVERSATION_SILENCE_DETECTED]
     silence_count = silence_events[0].payload.get("count", 0) if silence_events else 0
     total_turns = len(agent_events) + len(user_events)
+
+    error_events = [e for e in events if e.event_type is EventType.SYSTEM_ERROR]
+    technical_error_conclusion = (
+        "No agent or user turns were recorded, so technical error rate cannot be computed"
+        if not total_turns
+        else f"{len(error_events)} system errors out of {total_turns} total turns"
+    )
+    evidences.append(
+        _rate(
+            session.session_id,
+            criterion="technical_error_rate",
+            conclusion=technical_error_conclusion,
+            numerator=len(error_events),
+            denominator=total_turns,
+            source_events=[e.event_id for e in error_events],
+            dimension=Dimension.TECHNICAL,
+        )
+    )
+
     silence_conclusion = (
         "No agent or user turns were recorded, so silence rate cannot be computed"
         if not total_turns
@@ -139,13 +171,19 @@ def build_evidences(session: Session) -> list[Evidence]:
     return evidences
 
 
-def _turns(session_id: str, criterion: str, label: str, events: list[Event]) -> Evidence:
+def _turns(
+    session_id: str,
+    criterion: str,
+    label: str,
+    events: list[Event],
+    dimension: Dimension = Dimension.CONVERSATIONAL,
+) -> Evidence:
     return Evidence(
         session_id=session_id,
         evidence_type=EvidenceType.INFERRED,
         criterion=criterion,
         conclusion=f"The session had {len(events)} {label}",
-        dimension=Dimension.CONVERSATIONAL,
+        dimension=dimension,
         source_events=[e.event_id for e in events],
         value=float(len(events)),
     )
@@ -158,6 +196,7 @@ def _rate(
     numerator: int,
     denominator: int,
     source_events: list[UUID],
+    dimension: Dimension = Dimension.CONVERSATIONAL,
 ) -> Evidence:
     value = 0.0 if denominator == 0 else numerator / denominator
     return Evidence(
@@ -165,7 +204,7 @@ def _rate(
         evidence_type=EvidenceType.INFERRED,
         criterion=criterion,
         conclusion=conclusion,
-        dimension=Dimension.CONVERSATIONAL,
+        dimension=dimension,
         source_events=source_events,
         value=value,
     )

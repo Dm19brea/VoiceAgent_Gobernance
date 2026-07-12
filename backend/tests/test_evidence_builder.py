@@ -277,3 +277,131 @@ def test_turn_started_and_ended_events_do_not_affect_turn_counts() -> None:
     assert evidences["agent_turns"].value == pytest.approx(1.0)
     assert evidences["user_turns"].value == pytest.approx(1.0)
     assert evidences["turn_completion_rate"].value == pytest.approx(1.0)
+
+
+def test_conversational_evidences_no_regression_snapshot() -> None:
+    """Locks criterion/dimension/evidence_type/value for the six conversational
+    evidences on a fixed trace, ahead of the `_turns`/`_rate` dimension refactor."""
+    session = _session_with_events(
+        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(4)],
+        *[(EventType.CONVERSATION_USER_INPUT, Source.USER, {}) for _ in range(4)],
+        (EventType.CONVERSATION_GOAL_ACHIEVED, Source.SYSTEM, {}),
+        (EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.SYSTEM, {}),
+        (EventType.CONVERSATION_SILENCE_DETECTED, Source.PLATFORM, {"count": 2}),
+    )
+
+    evidences = _by_criterion(build_evidences(session))
+
+    expected = {
+        "total_turns": (EvidenceType.INFERRED, Dimension.CONVERSATIONAL, 8.0),
+        "agent_turns": (EvidenceType.INFERRED, Dimension.CONVERSATIONAL, 4.0),
+        "user_turns": (EvidenceType.INFERRED, Dimension.CONVERSATIONAL, 4.0),
+        "goal_completion": (EvidenceType.INFERRED, Dimension.CONVERSATIONAL, 1.0),
+        "turn_completion_rate": (EvidenceType.INFERRED, Dimension.CONVERSATIONAL, 0.75),
+        "prolonged_silence_rate": (EvidenceType.INFERRED, Dimension.CONVERSATIONAL, 0.25),
+    }
+
+    for criterion, (evidence_type, dimension, value) in expected.items():
+        evidence = evidences[criterion]
+        assert evidence.evidence_type is evidence_type
+        assert evidence.dimension is dimension
+        assert evidence.value == pytest.approx(value)
+
+
+def test_model_invocation_count_evidence() -> None:
+    session = _session_with_events(
+        *[(EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM, {}) for _ in range(3)],
+    )
+    invocation_events = [
+        e for e in session.events if e.event_type is EventType.SYSTEM_MODEL_INVOCATION
+    ]
+
+    evidences = _by_criterion(build_evidences(session))
+
+    invocations = evidences["model_invocation_count"]
+    assert invocations.criterion == "model_invocation_count"
+    assert invocations.dimension is Dimension.TECHNICAL
+    assert invocations.evidence_type is EvidenceType.INFERRED
+    assert invocations.value == pytest.approx(3.0)
+    assert {e.event_id for e in invocation_events} == set(invocations.source_events)
+
+
+def test_model_invocation_count_zero_without_events() -> None:
+    session = _session_with_events()
+
+    evidences = _by_criterion(build_evidences(session))
+
+    invocations = evidences["model_invocation_count"]
+    assert invocations.value == pytest.approx(0.0)
+    assert invocations.source_events == []
+
+
+def test_technical_error_rate_with_errors_and_turns() -> None:
+    session = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+        (EventType.SYSTEM_ERROR, Source.SYSTEM, {}),
+    )
+    error_events = [e for e in session.events if e.event_type is EventType.SYSTEM_ERROR]
+
+    evidences = _by_criterion(build_evidences(session))
+
+    error_rate = evidences["technical_error_rate"]
+    assert error_rate.criterion == "technical_error_rate"
+    assert error_rate.dimension is Dimension.TECHNICAL
+    assert error_rate.evidence_type is EvidenceType.INFERRED
+    assert error_rate.value == pytest.approx(0.5)
+    assert {e.event_id for e in error_events} == set(error_rate.source_events)
+
+
+def test_technical_error_rate_zero_without_errors() -> None:
+    session = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+    )
+
+    evidences = _by_criterion(build_evidences(session))
+
+    error_rate = evidences["technical_error_rate"]
+    assert error_rate.value == pytest.approx(0.0)
+    assert error_rate.source_events == []
+
+
+def test_technical_error_rate_zero_denominator_guard() -> None:
+    session = _session_with_events()
+
+    evidences = _by_criterion(build_evidences(session))
+
+    error_rate = evidences["technical_error_rate"]
+    assert error_rate.value == pytest.approx(0.0)
+    assert (
+        error_rate.conclusion
+        == "No agent or user turns were recorded, so technical error rate cannot be computed"
+    )
+
+
+def test_technical_and_conversational_evidences_coexist_without_duplicates() -> None:
+    session = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+        (EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM, {}),
+        (EventType.SYSTEM_ERROR, Source.SYSTEM, {}),
+    )
+
+    evidences = build_evidences(session)
+    criteria = [e.criterion for e in evidences]
+
+    assert len(criteria) == len(set(criteria))
+    expected_criteria = {
+        "total_turns",
+        "agent_turns",
+        "user_turns",
+        "goal_completion",
+        "turn_completion_rate",
+        "prolonged_silence_rate",
+        "session_duration_seconds",
+        "session_completed",
+        "model_invocation_count",
+        "technical_error_rate",
+    }
+    assert expected_criteria.issubset(set(criteria))
