@@ -2,6 +2,8 @@
 
 import dataclasses
 
+import pytest
+
 from src.domain.scoring.metric_spec import METRIC_SPECS, MetricSpec, identity, to_percent
 
 
@@ -15,16 +17,16 @@ def test_metric_spec_is_a_frozen_dataclass_with_expected_fields() -> None:
 def test_metric_spec_instances_are_frozen() -> None:
     spec = METRIC_SPECS[0]
 
-    with __import__("pytest").raises(dataclasses.FrozenInstanceError):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         spec.code = "changed"  # type: ignore[misc]
 
 
 def test_identity_returns_the_value_unchanged() -> None:
-    assert identity(5.0) == 5.0
+    assert identity(5.0) == pytest.approx(5.0)
 
 
 def test_to_percent_rescales_a_ratio_to_a_percentage() -> None:
-    assert to_percent(0.87) == 87.0
+    assert to_percent(0.87) == pytest.approx(87.0)
 
 
 def test_metric_specs_table_is_not_empty() -> None:
