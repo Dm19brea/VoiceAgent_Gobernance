@@ -88,6 +88,42 @@ def build_evidences(session: Session) -> list[Evidence]:
     silence_count = silence_events[0].payload.get("count", 0) if silence_events else 0
     total_turns = len(agent_events) + len(user_events)
 
+    tool_events = [e for e in events if e.event_type is EventType.TOOL_CALLED]
+    tool_density_conclusion = (
+        "No agent turns were recorded, so tool usage density cannot be computed"
+        if not agent_events
+        else f"{len(tool_events)} tool calls across {len(agent_events)} agent turns"
+    )
+    evidences.append(
+        _rate(
+            session.session_id,
+            criterion="tool_usage_density",
+            conclusion=tool_density_conclusion,
+            numerator=len(tool_events),
+            denominator=len(agent_events),
+            source_events=[e.event_id for e in tool_events],
+            dimension=Dimension.OPERATIONAL,
+        )
+    )
+
+    warning_events = [e for e in events if e.event_type is EventType.SYSTEM_WARNING]
+    warning_rate_conclusion = (
+        "No agent or user turns were recorded, so system warning rate cannot be computed"
+        if not total_turns
+        else f"{len(warning_events)} system warnings out of {total_turns} total turns"
+    )
+    evidences.append(
+        _rate(
+            session.session_id,
+            criterion="system_warning_rate",
+            conclusion=warning_rate_conclusion,
+            numerator=len(warning_events),
+            denominator=total_turns,
+            source_events=[e.event_id for e in warning_events],
+            dimension=Dimension.RISK,
+        )
+    )
+
     error_events = [e for e in events if e.event_type is EventType.SYSTEM_ERROR]
     technical_error_conclusion = (
         "No agent or user turns were recorded, so technical error rate cannot be computed"

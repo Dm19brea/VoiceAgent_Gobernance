@@ -48,8 +48,10 @@ async def build_session_evidences_async(session_id: str) -> int:
     stays durable regardless of the evidence/scoring outcome (failure-closed) and a retry
     never duplicates it (idempotent via the repository's ON CONFLICT append). Evidences and
     the evaluation report are then written in the same run (evidences -> report, design D8).
-    The report is replaced per session, so re-running stays idempotent. Uses its own
-    short-lived engine (NullPool) so each Celery task run is isolated from other event loops.
+    The report is replaced per session, so re-running stays idempotent. Terminal-report
+    conversation content is persisted before evidence construction, so evidence denominators
+    include those derived turns on the first evaluation. Uses its own short-lived engine
+    (NullPool) so each Celery task run is isolated from other event loops.
     """
     engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
     try:
@@ -65,6 +67,11 @@ async def build_session_evidences_async(session_id: str) -> int:
             )
             await session.commit()  # marker durable regardless of evidence outcome
             logger.info("session.evaluation_triggered recorded: session=%s", session_id)
+
+            await _record_conversation_content(session_id, governance_session)
+            governance_session = await repository.get_session(session_id)
+            if governance_session is None:
+                return 0
 
             evaluation_started = perf_counter()
             started_at = datetime.now(UTC)
@@ -89,7 +96,6 @@ async def build_session_evidences_async(session_id: str) -> int:
                     duration_milliseconds=(perf_counter() - evaluation_started) * 1000,
                 ),
             )
-            await _record_conversation_content(session_id, governance_session)
             await _record_conversation_silence(session_id, governance_session)
             await _record_conversation_signals(session_id, governance_session)
             return len(evidences)

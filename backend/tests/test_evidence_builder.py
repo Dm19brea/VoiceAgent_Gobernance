@@ -7,6 +7,7 @@ import pytest
 from src.domain.enums import Dimension, EventType, EvidenceType, Source
 from src.domain.evidence import Evidence
 from src.domain.evidence_builder import build_evidences
+from src.domain.scoring.catalogue import build_metrics
 from src.domain.session import Session
 
 START = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
@@ -418,6 +419,85 @@ def test_technical_error_rate_zero_denominator_guard() -> None:
     assert (
         error_rate.conclusion
         == "No agent or user turns were recorded, so technical error rate cannot be computed"
+    )
+
+
+@pytest.mark.parametrize(
+    ("agent_turns", "tool_calls", "expected_value"),
+    [
+        (2, 3, 1.5),
+        (2, 0, 0.0),
+        (0, 0, 0.0),
+        (0, 2, 0.0),
+    ],
+)
+def test_tool_usage_density_uses_tool_calls_per_agent_turn(
+    agent_turns: int, tool_calls: int, expected_value: float
+) -> None:
+    session = _session_with_events(
+        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(agent_turns)],
+        *[(EventType.TOOL_CALLED, Source.AGENT, {}) for _ in range(tool_calls)],
+    )
+    tool_events = [event for event in session.events if event.event_type is EventType.TOOL_CALLED]
+
+    density = _by_criterion(build_evidences(session))["tool_usage_density"]
+
+    assert density.evidence_type is EvidenceType.INFERRED
+    assert density.dimension is Dimension.OPERATIONAL
+    assert density.value == pytest.approx(expected_value)
+    assert density.source_events == [event.event_id for event in tool_events]
+
+
+@pytest.mark.parametrize(
+    ("agent_turns", "user_turns", "warnings", "expected_value"),
+    [
+        (2, 2, 2, 0.5),
+        (2, 2, 0, 0.0),
+        (0, 0, 0, 0.0),
+        (0, 0, 2, 0.0),
+        (1, 1, 3, 1.5),
+    ],
+)
+def test_system_warning_rate_uses_warnings_per_total_turn(
+    agent_turns: int, user_turns: int, warnings: int, expected_value: float
+) -> None:
+    session = _session_with_events(
+        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(agent_turns)],
+        *[(EventType.CONVERSATION_USER_INPUT, Source.USER, {}) for _ in range(user_turns)],
+        *[(EventType.SYSTEM_WARNING, Source.SYSTEM, {}) for _ in range(warnings)],
+    )
+    warning_events = [
+        event for event in session.events if event.event_type is EventType.SYSTEM_WARNING
+    ]
+
+    rate = _by_criterion(build_evidences(session))["system_warning_rate"]
+
+    assert rate.evidence_type is EvidenceType.INFERRED
+    assert rate.dimension is Dimension.RISK
+    assert rate.value == pytest.approx(expected_value)
+    assert rate.source_events == [event.event_id for event in warning_events]
+
+
+def test_density_rate_evidences_are_unique_and_do_not_change_scoring() -> None:
+    baseline = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+    )
+    with_density_events = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+        (EventType.TOOL_CALLED, Source.AGENT, {}),
+        (EventType.SYSTEM_WARNING, Source.SYSTEM, {}),
+    )
+
+    evidences = build_evidences(with_density_events)
+    criteria = [evidence.criterion for evidence in evidences]
+
+    assert criteria.count("tool_usage_density") == 1
+    assert criteria.count("system_warning_rate") == 1
+    assert len(criteria) == len(set(criteria))
+    assert build_metrics(baseline, build_evidences(baseline)) == build_metrics(
+        with_density_events, evidences
     )
 
 
