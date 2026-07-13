@@ -159,9 +159,7 @@ async def test_task_builds_nonzero_density_rates_from_terminal_report_content(
         if evidence.criterion in {"tool_usage_density", "system_warning_rate"}
     }
     assert repeated_rates == first_rates
-    density_rows = [
-        evidence for evidence in repeated if evidence.criterion == "tool_usage_density"
-    ]
+    density_rows = [evidence for evidence in repeated if evidence.criterion == "tool_usage_density"]
     warning_rows = [
         evidence for evidence in repeated if evidence.criterion == "system_warning_rate"
     ]
