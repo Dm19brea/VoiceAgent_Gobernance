@@ -26,7 +26,7 @@ La columna **Readiness** responde a "¿se puede construir ahora mismo?", con ind
 | Operational | M-O01 — Tasa de éxito de herramientas | `tool.called`, `tool.response_received`, `tool.failed` | No | Blocked | `tool.called` se persiste, pero `tool.response_received` / `tool.failed` **no se emiten**. Requiere instrumentar los resultados de ejecución de herramientas. |
 | Operational | M-O02 — Tasa de reintentos de herramientas | `tool.called`, `tool.retry` | No | Blocked | `tool.retry` no se emite. |
 | Operational | M-O03 — Tasa de timeout de herramientas | `tool.called`, `tool.timeout` | No | Blocked | `tool.timeout` no se emite. |
-| Operational | M-O04 — Densidad de uso de herramientas | `tool.called`, turnos del agente | No | **Ready now** | `tool.called` se persiste y `agent_turns` ya se calcula; densidad = llamadas a herramientas / turnos del agente. Usar `agent_turns` como denominador en vez del `turn_started` (live-only). |
+| Operational | M-O04 — Densidad de uso de herramientas | `tool.called`, turnos del agente | **Sí** | Implementado | **Implementado.** `criterion="tool_usage_density"` = `count(tool.called) / agent_turns`; usa turnos de contenido, guarda de denominador 0, no satura valores superiores a `1.0` y traza solo los eventos `tool.called`. |
 | Operational | Evidencia MVP existente — motivo de finalización | payload de `session.ended` `report.ended_reason` | Sí | — | `ended_reason` se calcula como evidencia directa. Da soporte a la interpretación operativa, pero no es una de las métricas operativas del doc 3.3. |
 | Technical | M-T01 — Latencia media de respuesta | `end-of-call-report.artifact.performanceMetrics.turnLatencies[].turnLatency` | **Sí** | Implementado | `criterion="mean_turn_latency_seconds"`: media exacta de latencias Vapi válidas, en segundos, trazada al evento terminal. |
 | Technical | M-T02 — Latencia máxima de respuesta | `end-of-call-report.artifact.performanceMetrics.turnLatencies[].turnLatency` | **Sí** | Implementado | `criterion="max_turn_latency_seconds"`: máximo real sin recorte, en segundos, trazado al evento terminal. |
@@ -37,7 +37,7 @@ La columna **Readiness** responde a "¿se puede construir ahora mismo?", con ind
 | Risk | M-R01 — Número de flags de gobernanza | `system.flag_raised` | **Sí** | Implementado | **Implementado (PR #30).** `criterion="governance_flag_count"` = conteo de `system.flag_raised`, vía `_turns(..., dimension=Dimension.RISK)`. |
 | Risk | M-R02 — Errores técnicos no recuperados | `system.error`, `session.failed` | **Sí** | Implementado | **Implementado (PR #30).** `criterion="unrecovered_error_present"` = binaria `1.0` si hay `system.error` **y** terminal `session.failed`, si no `0.0`. |
 | Risk | M-R03 — Fallos de herramientas no resueltos | `tool.failed`, `tool.timeout`, `tool.response_received`, `conversation.goal_achieved` | No | Blocked | `goal_achieved` se emite, pero los eventos de resultado de herramientas (`failed`/`timeout`/`response_received`) **no**. Requiere instrumentar la ejecución de herramientas. |
-| Risk | M-R04 — Tasa de advertencias del sistema | `system.warning` | No | Needs redefinition | **`system.warning` ya se emite.** El conteo de advertencias es construible ahora; el denominador de la tasa debe dejar de usar `turn_started` (live-only) y pasar a turnos derivados del contenido. |
+| Risk | M-R04 — Tasa de advertencias del sistema | `system.warning`, turnos de contenido | **Sí** | Implementado | **Implementado.** `criterion="system_warning_rate"` = `count(system.warning) / total_turns`; usa turnos de contenido, guarda de denominador 0, no satura valores superiores a `1.0` y traza solo los eventos `system.warning`. |
 
 ## Qué calcula el backend hoy
 
@@ -58,6 +58,8 @@ La columna **Readiness** responde a "¿se puede construir ahora mismo?", con ind
 | `session_failed` | Technical | directa | `session.failed` (terminación por error no controlado; mutuamente excluyente con `session_completed`) |
 | `governance_flag_count` (M-R01) | Risk | inferida | conteo de `system.flag_raised` — **PR #30** |
 | `unrecovered_error_present` (M-R02) | Risk | inferida | `system.error` + `session.failed` (binaria 1/0) — **PR #30** |
+| `tool_usage_density` (M-O04) | Operational | inferida | `tool.called` / `agent_turns` |
+| `system_warning_rate` (M-R04) | Risk | inferida | `system.warning` / `total_turns` |
 | `ended_reason` | Operational | directa | evento terminal `payload.report.ended_reason` (`session.ended` o `session.failed`) |
 
 ## Resumen del estado de implementación
@@ -68,22 +70,17 @@ La columna **Readiness** responde a "¿se puede construir ahora mismo?", con ind
 
 **Implementado (PR #30)** — dimensión Risk: `M-R01` (`governance_flag_count`), `M-R02` (`unrecovered_error_present`).
 
-**Ready now** (todos los eventos fuente se persisten — solo falta el cálculo en `build_evidences()`):
-`M-O04` (densidad de uso de herramientas).
+**Implementado** — `M-O04` (`tool_usage_density`) usa `tool.called / agent_turns` y `M-R04` (`system_warning_rate`) usa `system.warning / total_turns`. Ambas tasas usan turnos de contenido, mantienen valores superiores a `1.0` y no están cableadas al scoring.
 
 **Implementado**: `M-T01` / `M-T02` usan las latencias reales por turno del `end-of-call-report` de Vapi; los valores ausentes o inválidos no generan evidencias.
 
-**Aplazado / Blocked**: `M-C04` (aplazado — sin señal de resolución por subobjetivo); `M-O01`, `M-O02`, `M-O03`, `M-R03` (faltan resultados de ejecución de herramientas); `M-C05` (falta atribución `source=agent`); `M-R04` (el numerador `system.warning` fluye, pero es una tasa que necesita denominador de turnos de contenido).
+**Aplazado / Blocked**: `M-C04` (aplazado — sin señal de resolución por subobjetivo); `M-O01`, `M-O02`, `M-O03`, `M-R03` (faltan resultados de ejecución de herramientas); `M-C05` (falta atribución `source=agent`).
 
 ## Siguiente paso
 
-Conversational (PR #28), Technical (PR #29) y Risk (PR #30) ya tienen cubiertas sus métricas viables. El único slice de evidencias **Ready-now** que queda es Operational:
+Conversational (PR #28), Technical (PR #29), Operational (M-O04) y Risk (PR #30, M-R04) ya tienen cubiertas sus métricas viables. No queda ningún slice de evidencias **Ready-now** pendiente.
 
-1. **Operativo Ready-now** — `M-O04` (densidad = `tool.called` / `agent_turns`), vía `_rate(..., dimension=Dimension.OPERATIONAL)`.
-
-Lo demás requiere una decisión o instrumentación nueva:
-
-2. **Latencia** — M-T01/M-T02 implementadas desde `performanceMetrics.turnLatencies`; mantener validado el contrato proveedor.
-3. **Aplazadas / bloqueadas** — `M-R04` (aplazada: warnings no asociables a turnos), `M-C04` (aplazada: sin resolución por subobjetivo), `M-C05` (falta `source=agent`), `M-O01–O03` y `M-R03` (faltan resultados de ejecución de herramientas). Requieren instrumentar eventos nuevos.
+1. **Latencia** — M-T01/M-T02 implementadas desde `performanceMetrics.turnLatencies`; mantener validado el contrato proveedor.
+2. **Aplazadas / bloqueadas** — `M-C04` (aplazada: sin señal de resolución por subobjetivo), `M-C05` (falta `source=agent`), `M-O01–O03` y `M-R03` (faltan resultados de ejecución de herramientas). Requieren instrumentar eventos nuevos.
 
 Nota transversal: ninguna de las evidencias implementadas está aún cableada al catálogo de scoring (`build_metrics`), así que todavía no mueven la nota de su dimensión. Cablearlas sería un cambio aparte que cubriría las cuatro dimensiones de una vez.
