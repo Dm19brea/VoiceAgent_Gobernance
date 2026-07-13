@@ -25,6 +25,7 @@ async def _persist_closed_session(
     session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
     session.record(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, START, {})
     session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, START, {})
+    session.record(EventType.CONVERSATION_GOAL_ACHIEVED, Source.SYSTEM, START, {})
     session.record(
         EventType.SESSION_ENDED,
         Source.PLATFORM,
@@ -45,12 +46,10 @@ async def test_task_persists_a_deterministic_report(db_session: AsyncSession) ->
     assert report is not None
     assert report.session_id == "call-t9"
     assert report.result is EvaluationResult.PASSED
-    assert {m.code for m in report.metrics} == {
-        "engagement",
-        "completion",
-        "duration",
-        "clean_ending",
-    }
+    codes = {m.code for m in report.metrics}
+    assert {"engagement", "duration", "M-C01", "M-C02", "M-C03", "M-T03", "M-T04"}.issubset(codes)
+    assert "completion" not in codes
+    assert "clean_ending" not in codes
     assert report.score_global >= 75
 
 

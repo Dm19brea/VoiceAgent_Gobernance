@@ -37,3 +37,9 @@ def latency(value: float, optimal: float, degraded: float) -> float:
         return 0.0
     ratio = (degraded - value) / (degraded - optimal)
     return _clamp(round(ratio * 100.0))
+
+
+def informational(value: float) -> float:
+    """A metric with no scoring threshold: always neutral, never penalises (weight 0)."""
+    del value
+    return 100.0
