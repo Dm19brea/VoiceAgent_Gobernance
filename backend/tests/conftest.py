@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
@@ -22,6 +23,21 @@ from src.infrastructure.db.models import (
 )
 from src.infrastructure.db.session import get_session
 from src.main import app
+
+
+@pytest.fixture(autouse=True)
+def _offline_conversation_judge(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the post-terminal LLM judge offline in every test.
+
+    The real ``OpenRouterConversationJudge`` short-circuits to ``None`` when no
+    API key is configured. A developer ``.env`` leaks a real key into the test
+    process, so any test that drives ``build_session_evidences_async`` without
+    stubbing the judge would make live HTTP calls with retry backoff — slow and
+    non-deterministic. Forcing an empty key on the shared settings singleton
+    keeps the signal step deterministic and network-free. Judge-adapter tests
+    pass their own explicit ``config``/``client`` and are unaffected.
+    """
+    monkeypatch.setattr(settings, "openrouter_api_key", "")
 
 
 async def _clean(conn: AsyncConnection) -> None:
