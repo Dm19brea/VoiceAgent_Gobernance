@@ -43,8 +43,16 @@ class DeterministicEvaluator:
 
 
 def _score_by_dimension(metrics: Sequence[Metric]) -> dict[Dimension, float]:
+    """Group metrics by dimension and average them, excluding weight-0 metrics.
+
+    Weight-0 metrics (e.g. informational M-T04/M-O04) are kept in the report's metrics
+    snapshot but never enter the weighted mean, so they cannot move a score or cause a
+    divide-by-zero when they are the only metrics in their dimension.
+    """
     grouped: dict[Dimension, list[Metric]] = defaultdict(list)
     for metric in metrics:
+        if metric.weight == 0:
+            continue
         grouped[metric.dimension].append(metric)
     return {dimension: dimension_score(group) for dimension, group in grouped.items()}
 

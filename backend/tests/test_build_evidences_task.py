@@ -366,9 +366,13 @@ async def test_evaluation_records_one_flag_per_accepted_finding_on_retry(
     reloaded = await repo.get_session("call-evaluation-flag")
     assert reloaded is not None
     flags = [event for event in reloaded.events if event.event_type is EventType.SYSTEM_FLAG_RAISED]
-    assert len(flags) == 1
-    assert flags[0].payload["code"] == "session_failed"
-    assert flags[0].payload["reason"] == "The session ended with an uncontrolled error."
+    # session_failed (no error/goal evidence recorded) also fires goal_not_completed
+    # independently (design D5, no suppression); retry must not duplicate either code.
+    assert len(flags) == 2
+    codes = {flag.payload["code"] for flag in flags}
+    assert codes == {"session_failed", "goal_not_completed"}
+    session_failed_flag = next(flag for flag in flags if flag.payload["code"] == "session_failed")
+    assert session_failed_flag.payload["reason"] == "The session ended with an uncontrolled error."
     latencies = [
         event for event in reloaded.events if event.event_type is EventType.SYSTEM_LATENCY_MEASURED
     ]

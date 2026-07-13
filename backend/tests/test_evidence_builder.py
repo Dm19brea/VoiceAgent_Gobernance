@@ -478,11 +478,7 @@ def test_system_warning_rate_uses_warnings_per_total_turn(
     assert rate.source_events == [event.event_id for event in warning_events]
 
 
-def test_density_rate_evidences_are_unique_and_do_not_change_scoring() -> None:
-    baseline = _session_with_events(
-        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
-        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
-    )
+def test_density_rate_evidences_are_unique() -> None:
     with_density_events = _session_with_events(
         (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
         (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
@@ -496,9 +492,59 @@ def test_density_rate_evidences_are_unique_and_do_not_change_scoring() -> None:
     assert criteria.count("tool_usage_density") == 1
     assert criteria.count("system_warning_rate") == 1
     assert len(criteria) == len(set(criteria))
-    assert build_metrics(baseline, build_evidences(baseline)) == build_metrics(
-        with_density_events, evidences
+
+
+def test_tool_usage_density_is_informational_and_never_changes_scoring() -> None:
+    # tool_usage_density feeds M-O04, weight 0 (design D3): the metric is emitted for
+    # traceability but excluded from scoring, so adding tool calls alone never moves
+    # any Metric's normalized_score.
+    baseline = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
     )
+    with_tool_calls = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+        (EventType.TOOL_CALLED, Source.AGENT, {}),
+    )
+
+    baseline_metrics = {
+        m.code: m.normalized_score for m in build_metrics(baseline, build_evidences(baseline))
+    }
+    with_tool_calls_metrics = {
+        m.code: m.normalized_score
+        for m in build_metrics(with_tool_calls, build_evidences(with_tool_calls))
+    }
+
+    shared_codes = set(baseline_metrics) & set(with_tool_calls_metrics)
+    assert "M-O04" in shared_codes
+    for code in shared_codes:
+        assert baseline_metrics[code] == with_tool_calls_metrics[code]
+
+
+def test_system_warning_rate_now_moves_the_risk_score() -> None:
+    # system_warning_rate feeds M-R04 (weight 1): unlike tool_usage_density, this
+    # evidence is wired to real scoring (design D2), so adding a warning must lower
+    # M-R04's normalized_score.
+    baseline = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+    )
+    with_warning = _session_with_events(
+        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
+        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
+        (EventType.SYSTEM_WARNING, Source.SYSTEM, {}),
+    )
+
+    baseline_metrics = {
+        m.code: m.normalized_score for m in build_metrics(baseline, build_evidences(baseline))
+    }
+    with_warning_metrics = {
+        m.code: m.normalized_score
+        for m in build_metrics(with_warning, build_evidences(with_warning))
+    }
+
+    assert with_warning_metrics["M-R04"] < baseline_metrics["M-R04"]
 
 
 def test_governance_flag_count_with_flags() -> None:

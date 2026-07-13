@@ -1,4 +1,4 @@
-"""M4.3 — Metric catalogue: build_metrics from a session's evidences (D2, R10)."""
+"""M4.3 — Metric catalogue: build_metrics from a session's evidences (D1/D2, R1/R10)."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -6,7 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from src.domain.enums import Dimension, EventType, Source
+from src.domain.enums import Dimension, EventType, EvidenceType, Source
+from src.domain.evidence import Evidence
 from src.domain.evidence_builder import build_evidences
 from src.domain.scoring.catalogue import build_metrics
 from src.domain.scoring.metric import Metric
@@ -15,12 +16,20 @@ from src.domain.session import Session
 START = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
 
 
-def _closed_session(
+def _session(
     *,
     agent_turns: int = 1,
     user_turns: int = 1,
     duration_seconds: int = 47,
     report: dict[str, Any] | None = None,
+    failed: bool = False,
+    goal_achieved: bool | None = None,
+    flag_count: int = 0,
+    tool_calls: int = 0,
+    warnings: int = 0,
+    errors: int = 0,
+    silences: int = 0,
+    interruptions: int = 0,
 ) -> Session:
     session = Session.open("call-1", uuid4(), START)
     session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
@@ -28,41 +37,64 @@ def _closed_session(
         session.record(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, START, {})
     for _ in range(user_turns):
         session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, START, {})
+    for _ in range(interruptions):
+        session.record(EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.SYSTEM, START, {})
+    if goal_achieved is True:
+        session.record(EventType.CONVERSATION_GOAL_ACHIEVED, Source.SYSTEM, START, {})
+    elif goal_achieved is False:
+        session.record(EventType.CONVERSATION_GOAL_FAILED, Source.SYSTEM, START, {})
+    for _ in range(tool_calls):
+        session.record(EventType.TOOL_CALLED, Source.TOOL, START, {})
+    for _ in range(warnings):
+        session.record(EventType.SYSTEM_WARNING, Source.SYSTEM, START, {})
+    for _ in range(errors):
+        session.record(EventType.SYSTEM_ERROR, Source.SYSTEM, START, {})
+    if silences:
+        session.record(
+            EventType.CONVERSATION_SILENCE_DETECTED, Source.SYSTEM, START, {"count": silences}
+        )
+    for _ in range(flag_count):
+        session.record(EventType.SYSTEM_FLAG_RAISED, Source.SYSTEM, START, {})
     end = START + timedelta(seconds=duration_seconds)
-    session.record(EventType.SESSION_ENDED, Source.PLATFORM, end, {"report": report or {}})
+    event_type = EventType.SESSION_FAILED if failed else EventType.SESSION_ENDED
+    session.record(event_type, Source.PLATFORM, end, {"report": report or {}})
     return session
 
 
-def _failed_session(
-    *,
-    agent_turns: int = 1,
-    user_turns: int = 1,
-    duration_seconds: int = 47,
-    report: dict[str, Any] | None = None,
-) -> Session:
-    session = Session.open("call-1", uuid4(), START)
-    session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
-    for _ in range(agent_turns):
-        session.record(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, START, {})
-    for _ in range(user_turns):
-        session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, START, {})
-    end = START + timedelta(seconds=duration_seconds)
-    session.record(EventType.SESSION_FAILED, Source.PLATFORM, end, {"report": report or {}})
-    return session
+def _closed_session(**kwargs: Any) -> Session:
+    return _session(**kwargs)
+
+
+def _failed_session(**kwargs: Any) -> Session:
+    return _session(failed=True, **kwargs)
 
 
 def _metrics(session: Session) -> dict[str, Metric]:
     return {m.code: m for m in build_metrics(session, build_evidences(session))}
 
 
-def test_full_session_yields_the_four_catalogue_metrics() -> None:
+def _evidence(
+    criterion: str, value: float | None, *, dimension: Dimension = Dimension.RISK
+) -> Evidence:
+    return Evidence(
+        session_id="call-1",
+        evidence_type=EvidenceType.INFERRED,
+        criterion=criterion,
+        conclusion="test evidence",
+        dimension=dimension,
+        source_events=[],
+        value=value,
+    )
+
+
+def test_full_session_yields_the_legacy_and_spec_metrics() -> None:
     metrics = _metrics(_closed_session(report={"ended_reason": "customer-ended-call"}))
 
-    assert set(metrics) == {"engagement", "completion", "duration", "clean_ending"}
+    assert {"engagement", "duration"}.issubset(metrics)
+    assert "completion" not in metrics
+    assert "clean_ending" not in metrics
     assert metrics["engagement"].dimension is Dimension.CONVERSATIONAL
-    assert metrics["completion"].dimension is Dimension.TECHNICAL
     assert metrics["duration"].dimension is Dimension.TECHNICAL
-    assert metrics["clean_ending"].dimension is Dimension.RISK
 
 
 def test_engagement_is_full_when_both_sides_speak() -> None:
@@ -86,47 +118,163 @@ def test_duration_uses_latency_normalisation() -> None:
     assert metrics["duration"].normalized_score == 50
 
 
-def test_clean_ending_is_full_for_a_normal_hangup() -> None:
+# -- M-R01 governance_flag_count (occurrences sanity, doc worked example) -----------------
+
+
+@pytest.mark.parametrize(
+    ("flag_count", "expected_score"),
+    [(0, 100), (1, 67), (2, 34)],
+)
+def test_m_r01_occurrences_sanity(flag_count: int, expected_score: float) -> None:
+    metrics = _metrics(_closed_session(flag_count=flag_count))
+
+    assert metrics["M-R01"].normalized_score == expected_score
+    assert metrics["M-R01"].weight == 3
+    assert metrics["M-R01"].dimension is Dimension.RISK
+
+
+def test_m_r01_is_omitted_when_its_evidence_is_absent() -> None:
+    session = Session.open("call-1", uuid4(), START)
+
+    metrics = {m.code for m in build_metrics(session, [])}
+
+    assert "M-R01" not in metrics
+
+
+def test_m_r01_is_omitted_when_its_evidence_value_is_none() -> None:
+    session = Session.open("call-1", uuid4(), START)
+    evidences = [_evidence("governance_flag_count", None)]
+
+    metrics = {m.code for m in build_metrics(session, evidences)}
+
+    assert "M-R01" not in metrics
+
+
+# -- Risk dimension: M-R02, M-R04 ----------------------------------------------------------
+
+
+@pytest.mark.parametrize(("errors", "failed", "expected_score"), [(1, True, 100), (0, False, 0)])
+def test_m_r02_unrecovered_error_present_is_binary(
+    errors: int, failed: bool, expected_score: float
+) -> None:
+    metrics = _metrics(_session(errors=errors, failed=failed))
+
+    assert metrics["M-R02"].normalized_score == expected_score
+    assert metrics["M-R02"].weight == 3
+
+
+def test_m_r04_system_warning_rate_rescales_before_normalising() -> None:
+    # 1 warning out of agent(1)+user(1)=2 turns -> rate 0.5 -> ×100=50 -> inverse -> 50
+    metrics = _metrics(_closed_session(warnings=1))
+
+    assert metrics["M-R04"].normalized_score == 50
+    assert metrics["M-R04"].weight == 1
+    assert metrics["M-R04"].dimension is Dimension.RISK
+
+
+# -- Conversational dimension: M-C01, M-C02, M-C03 ------------------------------------------
+
+
+def test_m_c01_turn_completion_rate_does_not_collapse_near_zero() -> None:
+    # 1 agent turn, 0 interruptions -> rate 1.0 -> ×100=100 -> percentage_direct -> 100
+    metrics = _metrics(_closed_session(agent_turns=1, interruptions=0))
+
+    assert metrics["M-C01"].normalized_score == 100
+    assert metrics["M-C01"].weight == 2
+
+
+def test_m_c02_prolonged_silence_rate_is_percentage_inverse() -> None:
+    # 1 silence out of agent(1)+user(1)=2 turns -> rate 0.5 -> ×100=50 -> inverse -> 50
+    metrics = _metrics(_closed_session(silences=1))
+
+    assert metrics["M-C02"].normalized_score == 50
+    assert metrics["M-C02"].weight == 1
+
+
+@pytest.mark.parametrize(("goal_achieved", "expected_score"), [(True, 100), (False, 0)])
+def test_m_c03_goal_completion_is_binary(goal_achieved: bool, expected_score: float) -> None:
+    metrics = _metrics(_closed_session(goal_achieved=goal_achieved))
+
+    assert metrics["M-C03"].normalized_score == expected_score
+    assert metrics["M-C03"].weight == 4
+
+
+# -- Technical dimension: M-T03, M-T04 -------------------------------------------------------
+
+
+def test_m_t03_technical_error_rate_rescales_before_normalising() -> None:
+    # 1 error out of agent(1)+user(1)=2 turns -> rate 0.5 -> ×100=50 -> inverse -> 50
+    metrics = _metrics(_closed_session(errors=1))
+
+    assert metrics["M-T03"].normalized_score == 50
+    assert metrics["M-T03"].weight == 3
+
+
+def test_m_t04_model_invocation_count_is_informational_weight_zero() -> None:
+    metrics = _metrics(_closed_session())
+
+    assert metrics["M-T04"].weight == 0
+    assert metrics["M-T04"].normalized_score == 100
+
+
+# -- Technical dimension: M-T01, M-T02 latency ------------------------------------------------
+
+
+def test_m_t01_and_m_t02_latency_sanity() -> None:
+    report = {"turn_latencies_seconds": [2.0]}
+    metrics = _metrics(_closed_session(report=report))
+
+    assert metrics["M-T01"].normalized_score == 67  # mean=2.0 -> latency(2.0,1.5,3.0)
+    assert metrics["M-T01"].weight == 3
+    assert metrics["M-T02"].normalized_score == 100  # max=2.0 <= optimal(3.0) -> full score
+
+
+def test_m_t02_uses_the_max_latency_value() -> None:
+    report = {"turn_latencies_seconds": [1.0, 4.0]}
+    metrics = _metrics(_closed_session(report=report))
+
+    assert metrics["M-T02"].normalized_score == 50  # max=4.0 -> latency(4.0,3.0,5.0)
+    assert metrics["M-T02"].weight == 2
+
+
+def test_m_t01_and_m_t02_are_omitted_when_report_has_no_latency_data() -> None:
     metrics = _metrics(_closed_session(report={"ended_reason": "customer-ended-call"}))
 
-    assert metrics["clean_ending"].normalized_score == 100
+    assert "M-T01" not in metrics
+    assert "M-T02" not in metrics
 
 
-def test_clean_ending_is_zero_for_a_bad_reason() -> None:
-    metrics = _metrics(_closed_session(report={"ended_reason": "silence-timed-out"}))
-
-    assert metrics["clean_ending"].normalized_score == 0
+# -- Operational dimension: M-O04 (informational, weight 0) -----------------------------------
 
 
-def test_clean_ending_is_zero_for_an_error_reason() -> None:
-    metrics = _metrics(_closed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
+def test_m_o04_tool_usage_density_is_informational_weight_zero() -> None:
+    metrics = _metrics(_closed_session(tool_calls=2))
 
-    assert metrics["clean_ending"].normalized_score == 0
-
-
-def test_clean_ending_is_computed_for_a_failed_session() -> None:
-    metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
-
-    assert "clean_ending" in metrics
-    assert metrics["clean_ending"].raw_value == pytest.approx(0.0)
-    assert metrics["clean_ending"].normalized_score == 0
+    assert metrics["M-O04"].weight == 0
+    assert metrics["M-O04"].normalized_score == 100
+    assert metrics["M-O04"].dimension is Dimension.OPERATIONAL
+    assert metrics["M-O04"].raw_value == pytest.approx(2.0)  # 2 tool calls / 1 agent turn
 
 
-def test_failed_session_has_no_completion_metric() -> None:
-    metrics = _metrics(_failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}))
-
-    assert "completion" not in metrics
-    assert metrics["clean_ending"].raw_value == pytest.approx(0.0)
+# -- Legacy retirement -------------------------------------------------------------------------
 
 
-def test_metrics_without_source_evidence_are_omitted() -> None:
-    # An active (never ended) session: only turn evidences exist -> only engagement.
+def test_completion_and_clean_ending_are_never_emitted() -> None:
+    for session in (
+        _closed_session(report={"ended_reason": "customer-ended-call"}),
+        _failed_session(report={"ended_reason": "pipeline-error-openai-llm-failed"}),
+    ):
+        codes = {m.code for m in build_metrics(session, build_evidences(session))}
+        assert "completion" not in codes
+        assert "clean_ending" not in codes
+
+
+def test_build_metrics_omits_metrics_when_no_evidence_is_given() -> None:
     session = Session.open("call-2", uuid4(), START)
-    session.record(EventType.SESSION_STARTED, Source.PLATFORM, START, {})
 
-    metrics = {m.code for m in build_metrics(session, build_evidences(session))}
+    metrics = build_metrics(session, [])
 
-    assert metrics == {"engagement"}
+    assert metrics == []
 
 
 def test_build_metrics_is_deterministic() -> None:
