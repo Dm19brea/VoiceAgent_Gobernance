@@ -46,11 +46,14 @@ async def build_session_evidences_async(session_id: str) -> int:
 
     Records the ``session.evaluation_triggered`` marker first, in its own commit, so it
     stays durable regardless of the evidence/scoring outcome (failure-closed) and a retry
-    never duplicates it (idempotent via the repository's ON CONFLICT append). Evidences and
-    the evaluation report are then written in the same run (evidences -> report, design D8).
-    The report is replaced per session, so re-running stays idempotent. Terminal-report
-    conversation content is persisted before evidence construction, so evidence denominators
-    include those derived turns on the first evaluation. Uses its own short-lived engine
+    never duplicates it (idempotent via the repository's ON CONFLICT append). Content,
+    silence, and judge-signal enrichment then run before evidence construction, each in
+    its own isolated best-effort transaction (a failed enrichment leaves its fact absent
+    but never fails the task). The session is reloaded once afterwards so evidence
+    construction and evaluation see every successfully persisted terminal fact in a single
+    deterministic pass (design: evaluation ordering). Evidences and the evaluation report
+    are then written in the same run (evidences -> report, design D8); the report is
+    replaced per session, so re-running stays idempotent. Uses its own short-lived engine
     (NullPool) so each Celery task run is isolated from other event loops.
     """
     engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
@@ -69,6 +72,9 @@ async def build_session_evidences_async(session_id: str) -> int:
             logger.info("session.evaluation_triggered recorded: session=%s", session_id)
 
             await _record_conversation_content(session_id, governance_session)
+            await _record_conversation_silence(session_id, governance_session)
+            await _record_conversation_signals(session_id, governance_session)
+
             governance_session = await repository.get_session(session_id)
             if governance_session is None:
                 return 0
@@ -96,8 +102,6 @@ async def build_session_evidences_async(session_id: str) -> int:
                     duration_milliseconds=(perf_counter() - evaluation_started) * 1000,
                 ),
             )
-            await _record_conversation_silence(session_id, governance_session)
-            await _record_conversation_signals(session_id, governance_session)
             return len(evidences)
     finally:
         await engine.dispose()
@@ -221,8 +225,8 @@ async def _record_conversation_content(session_id: str, governance_session: Sess
 
     Content is derived audit enrichment sourced from the session's own terminal
     event payload (the ``end-of-call-report`` message, retained with its
-    ``artifact``). Isolated in its own engine/transaction after the evidence
-    and evaluation observations, so a failure here never blocks or corrupts
+    ``artifact``). Isolated in its own engine/transaction and run before the
+    evidence/report transaction, so a failure here never blocks or corrupts
     the critical path.
     """
     try:

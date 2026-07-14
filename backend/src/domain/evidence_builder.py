@@ -20,36 +20,47 @@ TERMINAL_EVENT_TYPES = (EventType.SESSION_ENDED, EventType.SESSION_FAILED)
 def build_evidences(session: Session) -> list[Evidence]:
     """Turn a session's event trace into structured evidences (pure, deterministic)."""
     events = session.events
+    trace_events = [e.event_id for e in events]
     evidences: list[Evidence] = []
 
     agent_events = [e for e in events if e.event_type is EventType.CONVERSATION_AGENT_RESPONSE]
     user_events = [e for e in events if e.event_type is EventType.CONVERSATION_USER_INPUT]
     conversation_events = [e for e in events if e.event_type in _CONVERSATION_TYPES]
 
-    evidences.append(_turns(session.session_id, "total_turns", "turns", conversation_events))
-    evidences.append(_turns(session.session_id, "agent_turns", "agent turns", agent_events))
-    evidences.append(_turns(session.session_id, "user_turns", "user turns", user_events))
+    evidences.append(
+        _turns(session.session_id, "total_turns", "turns", conversation_events, trace_events)
+    )
+    evidences.append(
+        _turns(session.session_id, "agent_turns", "agent turns", agent_events, trace_events)
+    )
+    evidences.append(
+        _turns(session.session_id, "user_turns", "user turns", user_events, trace_events)
+    )
 
     goal_achieved_events = [
         e for e in events if e.event_type is EventType.CONVERSATION_GOAL_ACHIEVED
     ]
     goal_failed_events = [e for e in events if e.event_type is EventType.CONVERSATION_GOAL_FAILED]
-    goal_source_events = goal_achieved_events or goal_failed_events
-    evidences.append(
-        Evidence(
-            session_id=session.session_id,
-            evidence_type=EvidenceType.INFERRED,
-            criterion="goal_completion",
-            conclusion=(
-                "The session reached its goal"
-                if goal_achieved_events
-                else "The session did not reach its goal"
-            ),
-            dimension=Dimension.CONVERSATIONAL,
-            source_events=[e.event_id for e in goal_source_events],
-            value=1.0 if goal_achieved_events else 0.0,
+    if goal_achieved_events or goal_failed_events:
+        # Only an explicit judge signal proves the outcome; a terminal event proves
+        # call completion, not conversational failure, so absence of a signal must
+        # not synthesize a failed-goal conclusion (spec R2).
+        goal_source_events = goal_achieved_events or goal_failed_events
+        evidences.append(
+            Evidence(
+                session_id=session.session_id,
+                evidence_type=EvidenceType.INFERRED,
+                criterion="goal_completion",
+                conclusion=(
+                    "The session reached its goal"
+                    if goal_achieved_events
+                    else "The session did not reach its goal"
+                ),
+                dimension=Dimension.CONVERSATIONAL,
+                source_events=[e.event_id for e in goal_source_events],
+                value=1.0 if goal_achieved_events else 0.0,
+            )
         )
-    )
 
     interruption_events = [
         e for e in events if e.event_type is EventType.CONVERSATION_INTERRUPTION_DETECTED
@@ -68,6 +79,7 @@ def build_evidences(session: Session) -> list[Evidence]:
             numerator=completed_turns,
             denominator=len(agent_events),
             source_events=[e.event_id for e in interruption_events],
+            trace_events=trace_events,
         )
     )
 
@@ -80,6 +92,7 @@ def build_evidences(session: Session) -> list[Evidence]:
             "model_invocation_count",
             "model invocations",
             model_invocation_events,
+            trace_events,
             dimension=Dimension.TECHNICAL,
         )
     )
@@ -102,6 +115,7 @@ def build_evidences(session: Session) -> list[Evidence]:
             numerator=len(tool_events),
             denominator=len(agent_events),
             source_events=[e.event_id for e in tool_events],
+            trace_events=trace_events,
             dimension=Dimension.OPERATIONAL,
         )
     )
@@ -120,6 +134,7 @@ def build_evidences(session: Session) -> list[Evidence]:
             numerator=len(warning_events),
             denominator=total_turns,
             source_events=[e.event_id for e in warning_events],
+            trace_events=trace_events,
             dimension=Dimension.RISK,
         )
     )
@@ -138,6 +153,7 @@ def build_evidences(session: Session) -> list[Evidence]:
             numerator=len(error_events),
             denominator=total_turns,
             source_events=[e.event_id for e in error_events],
+            trace_events=trace_events,
             dimension=Dimension.TECHNICAL,
         )
     )
@@ -155,6 +171,7 @@ def build_evidences(session: Session) -> list[Evidence]:
             numerator=silence_count,
             denominator=total_turns,
             source_events=[e.event_id for e in silence_events],
+            trace_events=trace_events,
         )
     )
 
@@ -213,12 +230,18 @@ def build_evidences(session: Session) -> list[Evidence]:
             "governance_flag_count",
             "governance flags",
             flag_events,
+            trace_events,
             dimension=Dimension.RISK,
         )
     )
 
     failed_events = [e for e in events if e.event_type is EventType.SESSION_FAILED]
     unrecovered_error = bool(error_events and failed_events)
+    unrecovered_source = (
+        [e.event_id for e in error_events] + [e.event_id for e in failed_events]
+        if unrecovered_error
+        else []
+    )
     evidences.append(
         Evidence(
             session_id=session.session_id,
@@ -230,11 +253,7 @@ def build_evidences(session: Session) -> list[Evidence]:
                 else "The session had no unrecovered error"
             ),
             dimension=Dimension.RISK,
-            source_events=(
-                [e.event_id for e in error_events] + [e.event_id for e in failed_events]
-                if unrecovered_error
-                else []
-            ),
+            source_events=_with_trace_fallback(unrecovered_source, trace_events),
             value=1.0 if unrecovered_error else 0.0,
         )
     )
@@ -284,11 +303,23 @@ def _turn_latency_evidences(
     ]
 
 
+def _with_trace_fallback(source_events: list[UUID], trace_events: list[UUID]) -> list[UUID]:
+    """Resolve provenance for an inferred evidence (pure, spec R4).
+
+    A conclusion established by matching events keeps those events. A conclusion
+    established by absence (no matching events) falls back to the complete ordered
+    evaluated trace, so no inferred evidence is ever persisted with an empty
+    ``source_events`` list.
+    """
+    return source_events if source_events else trace_events
+
+
 def _turns(
     session_id: str,
     criterion: str,
     label: str,
     events: list[Event],
+    trace_events: list[UUID],
     dimension: Dimension = Dimension.CONVERSATIONAL,
 ) -> Evidence:
     return Evidence(
@@ -297,7 +328,7 @@ def _turns(
         criterion=criterion,
         conclusion=f"The session had {len(events)} {label}",
         dimension=dimension,
-        source_events=[e.event_id for e in events],
+        source_events=_with_trace_fallback([e.event_id for e in events], trace_events),
         value=float(len(events)),
     )
 
@@ -309,6 +340,7 @@ def _rate(
     numerator: int,
     denominator: int,
     source_events: list[UUID],
+    trace_events: list[UUID],
     dimension: Dimension = Dimension.CONVERSATIONAL,
 ) -> Evidence:
     value = 0.0 if denominator == 0 else numerator / denominator
@@ -318,6 +350,6 @@ def _rate(
         criterion=criterion,
         conclusion=conclusion,
         dimension=dimension,
-        source_events=source_events,
+        source_events=_with_trace_fallback(source_events, trace_events),
         value=value,
     )

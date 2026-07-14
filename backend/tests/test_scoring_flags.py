@@ -97,6 +97,14 @@ def test_goal_not_completed_flag_fires_when_goal_completion_value_is_zero() -> N
     assert FLAG_GOAL_NOT_COMPLETED in {flag.code for flag in flags}
 
 
+def test_goal_not_completed_flag_does_not_fire_when_goal_completion_evidence_is_absent() -> None:
+    # No explicit goal signal exists, so evidence_builder never emits goal_completion
+    # (spec R2); the flag must require explicit failed-goal evidence to fire.
+    flags = detect_blocking_flags([_completed_evidence()])
+
+    assert FLAG_GOAL_NOT_COMPLETED not in {flag.code for flag in flags}
+
+
 def test_goal_not_completed_flag_does_not_fire_when_goal_achieved() -> None:
     flags = detect_blocking_flags([_completed_evidence(), _goal_completion_evidence(1.0)])
 

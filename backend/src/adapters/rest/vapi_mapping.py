@@ -267,7 +267,9 @@ def _normalise_turn_latencies(artifact: object) -> list[float]:
             and isfinite(value)
             and value >= 0
         ):
-            values.append(float(value))
+            # Vapi reports turnLatency in milliseconds; convert once at the
+            # ingress boundary so downstream evidence/scoring stay seconds-only.
+            values.append(float(value) / 1000)
     return values
 
 
