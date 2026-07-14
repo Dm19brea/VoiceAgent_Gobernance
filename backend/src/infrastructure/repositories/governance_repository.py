@@ -47,6 +47,38 @@ class SqlAlchemyGovernanceRepository:
         self._session.add(_to_agent_model(agent))
         await self._session.flush()
 
+    async def upsert_agent(self, agent: Agent) -> Agent:
+        """Create or promote an agent by ``vapi_assistant_id``, atomically.
+
+        ``agent_id`` is deliberately excluded from ``set_`` so a conflicting
+        update preserves the pre-existing row's primary key. ``description``
+        is only included in ``set_`` when explicitly provided (not ``None``),
+        so an omitted description preserves the prior value on update.
+        """
+        set_: dict[str, Any] = {
+            "name": agent.name,
+            "objective": agent.objective,
+            "status": agent.status.value,
+        }
+        if agent.description is not None:
+            set_["description"] = agent.description
+        stmt = (
+            pg_insert(AgentModel)
+            .values(
+                agent_id=agent.agent_id,
+                name=agent.name,
+                objective=agent.objective,
+                vapi_assistant_id=agent.vapi_assistant_id,
+                description=agent.description if agent.description is not None else "",
+                status=agent.status.value,
+            )
+            .on_conflict_do_update(index_elements=["vapi_assistant_id"], set_=set_)
+            .returning(AgentModel)
+        )
+        row = (await self._session.execute(stmt)).scalar_one()
+        await self._session.flush()
+        return _to_agent(row)
+
     async def get_session(self, session_id: str) -> Session | None:
         return await self._load_session(session_id, for_update=False)
 

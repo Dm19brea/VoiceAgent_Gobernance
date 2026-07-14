@@ -10,13 +10,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.query import SessionSummary
+from src.domain.agent import Agent
 from src.domain.enums import EvaluationResult, EventType, SessionStatus, Source
 from src.domain.evaluation_report import EvaluationReport
 from src.domain.event import Event
 from src.domain.evidence import Evidence
 from src.domain.session import Session
-from src.infrastructure.db.models import EvaluationReportModel, SessionModel
-from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
+from src.infrastructure.db.models import AgentModel, EvaluationReportModel, SessionModel
+from src.infrastructure.repositories.governance_repository import (
+    SqlAlchemyGovernanceRepository,
+    _to_agent,
+)
 
 
 class SqlAlchemyGovernanceQuery:
@@ -89,6 +93,14 @@ class SqlAlchemyGovernanceQuery:
         )
         rows = (await self._session.execute(stmt)).all()
         return [_to_summary(session_row, report_row) for session_row, report_row in rows]
+
+    async def list_agents(self) -> list[Agent]:
+        rows = (
+            await self._session.scalars(
+                select(AgentModel).order_by(AgentModel.name, AgentModel.agent_id)
+            )
+        ).all()
+        return [_to_agent(row) for row in rows]
 
 
 def _to_summary(

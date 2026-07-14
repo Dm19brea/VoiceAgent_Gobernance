@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.agent import Agent
-from src.domain.enums import EvaluationResult, EventType, Source
+from src.domain.enums import AgentStatus, EvaluationResult, EventType, Source
 from src.domain.evaluation_report import EvaluationReport
 from src.domain.session import Session
 from src.infrastructure.repositories.governance_query import SqlAlchemyGovernanceQuery
@@ -114,3 +114,34 @@ async def test_list_agent_sessions_paginates(db_session: AsyncSession) -> None:
     first_page = await query.list_agent_sessions(agent.agent_id, limit=1, offset=0)
 
     assert len(first_page) == 1
+
+
+async def test_list_agents_returns_mixed_statuses(db_session: AsyncSession) -> None:
+    """PR2 — GET /agents query side (R10-R11, S6)."""
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    registered = Agent(
+        name="Citas", objective="Confirmar", vapi_assistant_id="asst-registered", description=""
+    )
+    await repo.add_agent(registered)
+    unregistered = Agent(
+        name="Unregistered asst-auto",
+        objective="(unregistered)",
+        vapi_assistant_id="asst-auto",
+        status=AgentStatus.UNREGISTERED,
+        description="",
+    )
+    await repo.add_agent(unregistered)
+    await db_session.commit()
+    query = SqlAlchemyGovernanceQuery(db_session)
+
+    agents = {agent.vapi_assistant_id: agent for agent in await query.list_agents()}
+
+    assert agents["asst-registered"].status is AgentStatus.ACTIVE
+    assert agents["asst-registered"].name == "Citas"
+    assert agents["asst-auto"].status is AgentStatus.UNREGISTERED
+
+
+async def test_list_agents_empty_when_none_exist(db_session: AsyncSession) -> None:
+    query = SqlAlchemyGovernanceQuery(db_session)
+
+    assert await query.list_agents() == []
