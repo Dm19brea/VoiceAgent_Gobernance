@@ -1,5 +1,7 @@
 from typing import Any
 
+import pytest
+
 from src.adapters.rest.vapi_mapping import map_vapi_event
 
 
@@ -36,16 +38,17 @@ def test_report_is_present_but_empty_when_fields_absent() -> None:
     assert report["turn_latencies_seconds"] == []
 
 
-def test_normalises_valid_turn_latencies_in_seconds() -> None:
+def test_normalises_valid_turn_latencies_from_milliseconds_to_seconds() -> None:
+    # Vapi's turnLatency is milliseconds; the mapping boundary converts once to
+    # seconds so evidence/scoring never have to guess a magnitude (spec R3).
     result = map_vapi_event(
         _end_of_call(
             {
                 "artifact": {
                     "performanceMetrics": {
                         "turnLatencies": [
-                            {"turnLatency": 0.5},
-                            {"turnLatency": 1},
-                            {"turnLatency": 1.5},
+                            {"turnLatency": 3010.714},
+                            {"turnLatency": 7234},
                         ]
                     }
                 }
@@ -54,7 +57,7 @@ def test_normalises_valid_turn_latencies_in_seconds() -> None:
     )
 
     assert result is not None
-    assert result.payload["report"]["turn_latencies_seconds"] == [0.5, 1.0, 1.5]
+    assert result.payload["report"]["turn_latencies_seconds"] == pytest.approx([3.010714, 7.234])
 
 
 def test_filters_invalid_turn_latencies_without_coercion() -> None:
@@ -64,13 +67,13 @@ def test_filters_invalid_turn_latencies_without_coercion() -> None:
                 "artifact": {
                     "performanceMetrics": {
                         "turnLatencies": [
-                            {"turnLatency": 0.8},
-                            {"turnLatency": "1.0"},
+                            {"turnLatency": 800},
+                            {"turnLatency": "1000"},
                             {"turnLatency": True},
                             {"turnLatency": -1},
                             {"turnLatency": float("nan")},
                             {"turnLatency": float("inf")},
-                            {"turnLatency": 1.2},
+                            {"turnLatency": 1200},
                             None,
                         ]
                     }
@@ -80,4 +83,4 @@ def test_filters_invalid_turn_latencies_without_coercion() -> None:
     )
 
     assert result is not None
-    assert result.payload["report"]["turn_latencies_seconds"] == [0.8, 1.2]
+    assert result.payload["report"]["turn_latencies_seconds"] == pytest.approx([0.8, 1.2])

@@ -366,11 +366,12 @@ async def test_evaluation_records_one_flag_per_accepted_finding_on_retry(
     reloaded = await repo.get_session("call-evaluation-flag")
     assert reloaded is not None
     flags = [event for event in reloaded.events if event.event_type is EventType.SYSTEM_FLAG_RAISED]
-    # session_failed (no error/goal evidence recorded) also fires goal_not_completed
-    # independently (design D5, no suppression); retry must not duplicate either code.
-    assert len(flags) == 2
+    # No goal signal was ever recorded for this session (no terminal report content
+    # to judge), so goal_completion evidence is never created and goal_not_completed
+    # never fires (spec R2); only session_failed fires. Retry must not duplicate it.
+    assert len(flags) == 1
     codes = {flag.payload["code"] for flag in flags}
-    assert codes == {"session_failed", "goal_not_completed"}
+    assert codes == {"session_failed"}
     session_failed_flag = next(flag for flag in flags if flag.payload["code"] == "session_failed")
     assert session_failed_flag.payload["reason"] == "The session ended with an uncontrolled error."
     latencies = [
@@ -1043,3 +1044,114 @@ async def test_conversation_signals_failure_does_not_raise_or_affect_content(
         e for e in reloaded.events if e.event_type is EventType.CONVERSATION_USER_INPUT
     ]
     assert len(content_events) == 1
+
+
+async def test_first_evaluation_includes_goal_completion_from_judge_signal(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Spec R1: judge signals must be persisted before the evidence/report transaction,
+    so the FIRST evaluation already reflects the achieved goal (no second run needed)."""
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-first-run-judge")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-first-run-judge", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "I need an appointment"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_achieved_verdict()),
+    )
+
+    await build_session_evidences_async("call-first-run-judge")
+
+    evidences = await repo.get_evidences_by_session("call-first-run-judge")
+    goal = next((e for e in evidences if e.criterion == "goal_completion"), None)
+    assert goal is not None
+    assert goal.value == pytest.approx(1.0)
+
+    report = await repo.get_report_by_session("call-first-run-judge")
+    assert report is not None
+    assert not any(flag.code == "goal_not_completed" for flag in report.blocking_flags)
+
+
+async def test_judge_failure_leaves_goal_completion_absent_without_failing_task(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: LogCaptureFixture,
+) -> None:
+    """Spec R1: a failed/unavailable judge must not fail the terminal workflow, and
+    must never fabricate a failed goal (spec R2)."""
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-judge-unavailable")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-judge-unavailable", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "Hi"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    class _BoomJudge:
+        async def evaluate(self, transcript: str) -> JudgeVerdict | None:
+            raise RuntimeError("judge network failure")
+
+    monkeypatch.setattr(tasks_module, "OpenRouterConversationJudge", lambda: _BoomJudge())
+
+    count = await build_session_evidences_async("call-judge-unavailable")
+
+    assert count > 0
+    assert caplog.text.count("Failed to record conversation signals") == 1
+    evidences = await repo.get_evidences_by_session("call-judge-unavailable")
+    assert not any(e.criterion == "goal_completion" for e in evidences)
+    report = await repo.get_report_by_session("call-judge-unavailable")
+    assert report is not None
+    assert not any(flag.code == "goal_not_completed" for flag in report.blocking_flags)
+
+
+async def test_repeated_evaluation_does_not_duplicate_goal_completion_evidence(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Spec R5: canonical terminal signals are not duplicated across runs, and the
+    final evidences represent one deterministic evaluation state."""
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-goal-retry")
+    await repo.add_agent(agent)
+
+    session = Session.open("call-goal-retry", agent.agent_id, START)
+    session.record(
+        EventType.SESSION_ENDED,
+        Source.PLATFORM,
+        END,
+        _report_payload([{"role": "user", "content": "I need an appointment"}]),
+    )
+    await repo.save_session(session)
+    await db_session.commit()
+
+    monkeypatch.setattr(
+        tasks_module,
+        "OpenRouterConversationJudge",
+        lambda: FakeConversationJudge(_achieved_verdict()),
+    )
+
+    await build_session_evidences_async("call-goal-retry")
+    await build_session_evidences_async("call-goal-retry")
+
+    evidences = await repo.get_evidences_by_session("call-goal-retry")
+    goal_evidences = [e for e in evidences if e.criterion == "goal_completion"]
+    assert len(goal_evidences) == 1
+    assert goal_evidences[0].value == pytest.approx(1.0)

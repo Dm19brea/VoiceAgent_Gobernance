@@ -82,7 +82,10 @@ def test_blocking_flag_forces_failed_despite_a_never_completed_session() -> None
     assert report.result is EvaluationResult.FAILED
     codes = {flag.code for flag in report.blocking_flags}
     assert FLAG_SESSION_NOT_COMPLETED in codes
-    assert FLAG_GOAL_NOT_COMPLETED in codes  # no goal event recorded -> orthogonal flag also fires
+    # No goal signal exists for this session (no explicit achieved/failed event), so
+    # goal_completion evidence is never created and goal_not_completed never fires
+    # (spec R2): absence of a signal is not evidence of a failed goal.
+    assert FLAG_GOAL_NOT_COMPLETED not in codes
 
 
 def test_high_score_without_flags_passes() -> None:  # S5

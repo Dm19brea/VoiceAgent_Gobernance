@@ -199,6 +199,14 @@ def test_m_c03_goal_completion_is_binary(goal_achieved: bool, expected_score: fl
     assert metrics["M-C03"].weight == 4
 
 
+def test_m_c03_is_omitted_when_no_goal_signal_exists() -> None:
+    # No explicit conversation.goal_achieved/goal_failed signal exists, so
+    # goal_completion evidence is never built and M-C03 is omitted (spec R2, R10).
+    metrics = _metrics(_closed_session(goal_achieved=None))
+
+    assert "M-C03" not in metrics
+
+
 # -- Technical dimension: M-T03, M-T04 -------------------------------------------------------
 
 
@@ -242,6 +250,17 @@ def test_m_t01_and_m_t02_are_omitted_when_report_has_no_latency_data() -> None:
 
     assert "M-T01" not in metrics
     assert "M-T02" not in metrics
+
+
+def test_m_t01_and_m_t02_use_seconds_directly_without_reconverting() -> None:
+    # Guards against reintroducing ms->s conversion inside the catalogue: the Vapi
+    # mapping boundary already converts once, so report values reaching evidence and
+    # scoring here are already seconds (spec R3, design "canonical unit").
+    report = {"turn_latencies_seconds": [3.010714, 7.234]}
+    metrics = _metrics(_closed_session(report=report))
+
+    assert metrics["M-T01"].raw_value == pytest.approx((3.010714 + 7.234) / 2)
+    assert metrics["M-T02"].raw_value == pytest.approx(7.234)
 
 
 # -- Operational dimension: M-O04 (informational, weight 0) -----------------------------------

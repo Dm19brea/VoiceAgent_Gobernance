@@ -203,14 +203,15 @@ def test_goal_failed_yields_zero_goal_completion_evidence() -> None:
     assert goal_event.event_id in goal.source_events
 
 
-def test_no_goal_event_yields_zero_goal_completion_with_empty_source_events() -> None:
+def test_no_goal_event_omits_goal_completion_evidence() -> None:
+    # No explicit conversation.goal_achieved/goal_failed signal exists; a terminal
+    # event proves call completion, not conversational failure, so goal_completion
+    # must not be synthesized (spec R2).
     session = _session_with_events()
 
     evidences = _by_criterion(build_evidences(session))
 
-    goal = evidences["goal_completion"]
-    assert goal.value == pytest.approx(0.0)
-    assert goal.source_events == []
+    assert "goal_completion" not in evidences
 
 
 def test_turn_completion_rate_accounts_for_interruptions() -> None:
@@ -262,7 +263,7 @@ def test_prolonged_silence_rate_with_aggregated_event() -> None:
     assert rate.dimension is Dimension.CONVERSATIONAL
 
 
-def test_prolonged_silence_rate_zero_without_silence_event() -> None:
+def test_prolonged_silence_rate_zero_without_silence_event_uses_trace_provenance() -> None:
     session = _session_with_events(
         *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(2)],
         *[(EventType.CONVERSATION_USER_INPUT, Source.USER, {}) for _ in range(2)],
@@ -272,7 +273,7 @@ def test_prolonged_silence_rate_zero_without_silence_event() -> None:
 
     rate = evidences["prolonged_silence_rate"]
     assert rate.value == pytest.approx(0.0)
-    assert rate.source_events == []
+    assert rate.source_events == [e.event_id for e in session.events]
 
 
 def test_prolonged_silence_rate_zero_denominator_guard() -> None:
@@ -368,14 +369,14 @@ def test_model_invocation_count_evidence() -> None:
     assert {e.event_id for e in invocation_events} == set(invocations.source_events)
 
 
-def test_model_invocation_count_zero_without_events() -> None:
+def test_model_invocation_count_zero_without_events_uses_trace_provenance() -> None:
     session = _session_with_events()
 
     evidences = _by_criterion(build_evidences(session))
 
     invocations = evidences["model_invocation_count"]
     assert invocations.value == pytest.approx(0.0)
-    assert invocations.source_events == []
+    assert invocations.source_events == [e.event_id for e in session.events]
 
 
 def test_technical_error_rate_with_errors_and_turns() -> None:
@@ -396,7 +397,7 @@ def test_technical_error_rate_with_errors_and_turns() -> None:
     assert {e.event_id for e in error_events} == set(error_rate.source_events)
 
 
-def test_technical_error_rate_zero_without_errors() -> None:
+def test_technical_error_rate_zero_without_errors_uses_trace_provenance() -> None:
     session = _session_with_events(
         (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
         (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
@@ -406,7 +407,7 @@ def test_technical_error_rate_zero_without_errors() -> None:
 
     error_rate = evidences["technical_error_rate"]
     assert error_rate.value == pytest.approx(0.0)
-    assert error_rate.source_events == []
+    assert error_rate.source_events == [e.event_id for e in session.events]
 
 
 def test_technical_error_rate_zero_denominator_guard() -> None:
@@ -426,8 +427,6 @@ def test_technical_error_rate_zero_denominator_guard() -> None:
     ("agent_turns", "tool_calls", "expected_value"),
     [
         (2, 3, 1.5),
-        (2, 0, 0.0),
-        (0, 0, 0.0),
         (0, 2, 0.0),
     ],
 )
@@ -448,12 +447,24 @@ def test_tool_usage_density_uses_tool_calls_per_agent_turn(
     assert density.source_events == [event.event_id for event in tool_events]
 
 
+@pytest.mark.parametrize(("agent_turns", "expected_value"), [(2, 0.0), (0, 0.0)])
+def test_tool_usage_density_zero_tool_calls_uses_trace_provenance(
+    agent_turns: int, expected_value: float
+) -> None:
+    session = _session_with_events(
+        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(agent_turns)],
+    )
+
+    density = _by_criterion(build_evidences(session))["tool_usage_density"]
+
+    assert density.value == pytest.approx(expected_value)
+    assert density.source_events == [e.event_id for e in session.events]
+
+
 @pytest.mark.parametrize(
     ("agent_turns", "user_turns", "warnings", "expected_value"),
     [
         (2, 2, 2, 0.5),
-        (2, 2, 0, 0.0),
-        (0, 0, 0, 0.0),
         (0, 0, 2, 0.0),
         (1, 1, 3, 1.5),
     ],
@@ -476,6 +487,21 @@ def test_system_warning_rate_uses_warnings_per_total_turn(
     assert rate.dimension is Dimension.RISK
     assert rate.value == pytest.approx(expected_value)
     assert rate.source_events == [event.event_id for event in warning_events]
+
+
+@pytest.mark.parametrize(("agent_turns", "user_turns"), [(2, 2), (0, 0)])
+def test_system_warning_rate_zero_uses_trace_provenance(agent_turns: int, user_turns: int) -> None:
+    # Spec R4 scenario: zero warning rate must reference the complete evaluated
+    # trace, never an empty source-events list.
+    session = _session_with_events(
+        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(agent_turns)],
+        *[(EventType.CONVERSATION_USER_INPUT, Source.USER, {}) for _ in range(user_turns)],
+    )
+
+    rate = _by_criterion(build_evidences(session))["system_warning_rate"]
+
+    assert rate.value == pytest.approx(0.0)
+    assert rate.source_events == [e.event_id for e in session.events]
 
 
 def test_density_rate_evidences_are_unique() -> None:
@@ -563,14 +589,14 @@ def test_governance_flag_count_with_flags() -> None:
     assert {e.event_id for e in flag_events} == set(flags.source_events)
 
 
-def test_governance_flag_count_zero_without_flags() -> None:
+def test_governance_flag_count_zero_without_flags_uses_trace_provenance() -> None:
     session = _session_with_events()
 
     evidences = _by_criterion(build_evidences(session))
 
     flags = evidences["governance_flag_count"]
     assert flags.value == pytest.approx(0.0)
-    assert flags.source_events == []
+    assert flags.source_events == [e.event_id for e in session.events]
 
 
 def test_unrecovered_error_present_with_error_and_failed_terminal() -> None:
@@ -603,14 +629,14 @@ def test_unrecovered_error_present_zero_with_clean_terminal() -> None:
     assert unrecovered.conclusion == "The session had no unrecovered error"
 
 
-def test_unrecovered_error_present_zero_without_error_events() -> None:
+def test_unrecovered_error_present_zero_without_error_events_uses_trace_provenance() -> None:
     session = _failed_session()
 
     evidences = _by_criterion(build_evidences(session))
 
     unrecovered = evidences["unrecovered_error_present"]
     assert unrecovered.value == pytest.approx(0.0)
-    assert unrecovered.source_events == []
+    assert unrecovered.source_events == [e.event_id for e in session.events]
 
 
 def _session_with_error_and_terminal(*, failed: bool) -> Session:
@@ -699,7 +725,6 @@ def test_technical_and_conversational_evidences_coexist_without_duplicates() -> 
         "total_turns",
         "agent_turns",
         "user_turns",
-        "goal_completion",
         "turn_completion_rate",
         "prolonged_silence_rate",
         "session_duration_seconds",
@@ -708,3 +733,6 @@ def test_technical_and_conversational_evidences_coexist_without_duplicates() -> 
         "technical_error_rate",
     }
     assert expected_criteria.issubset(set(criteria))
+    # No explicit goal signal is present in this trace, so goal_completion is
+    # correctly omitted (spec R2).
+    assert "goal_completion" not in criteria
