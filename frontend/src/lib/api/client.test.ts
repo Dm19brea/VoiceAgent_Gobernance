@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { getReport, getSessions } from "@/lib/api/client";
+import { getAgents, getReport, getSessions, registerAgent } from "@/lib/api/client";
 import { apiBaseUrl } from "@/lib/api/config";
 import { server } from "@/test/msw/server";
 
@@ -66,5 +66,76 @@ describe("getReport", () => {
     );
 
     await expect(getReport("call-x")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("getAgents", () => {
+  it("fetches and returns typed agents from the API", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/agents`, () =>
+        HttpResponse.json([
+          {
+            agent_id: "a-1",
+            vapi_assistant_id: "va-1",
+            name: "Sales Agent",
+            objective: "Book demos",
+            description: "",
+            status: "ACTIVE",
+          },
+        ]),
+      ),
+    );
+
+    const agents = await getAgents();
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0].agent_id).toBe("a-1");
+    expect(agents[0].status).toBe("ACTIVE");
+  });
+
+  it("throws on a non-2xx response", async () => {
+    server.use(http.get(`${apiBaseUrl}/agents`, () => new HttpResponse(null, { status: 500 })));
+
+    await expect(getAgents()).rejects.toThrow();
+  });
+});
+
+describe("registerAgent", () => {
+  it("posts the agent payload and returns the persisted agent", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post(`${apiBaseUrl}/agents`, async ({ request }) => {
+        receivedBody = await request.json();
+        return HttpResponse.json({
+          agent_id: "a-2",
+          vapi_assistant_id: "va-2",
+          name: "Support Agent",
+          objective: "Resolve tickets",
+          description: "",
+          status: "ACTIVE",
+        });
+      }),
+    );
+
+    const agent = await registerAgent({
+      vapi_assistant_id: "va-2",
+      name: "Support Agent",
+      objective: "Resolve tickets",
+    });
+
+    expect(agent.agent_id).toBe("a-2");
+    expect(receivedBody).toMatchObject({
+      vapi_assistant_id: "va-2",
+      name: "Support Agent",
+      objective: "Resolve tickets",
+    });
+  });
+
+  it("throws an ApiError with status 422 on invalid input", async () => {
+    server.use(http.post(`${apiBaseUrl}/agents`, () => new HttpResponse(null, { status: 422 })));
+
+    await expect(
+      registerAgent({ vapi_assistant_id: "", name: "", objective: "" }),
+    ).rejects.toMatchObject({ status: 422 });
   });
 });
