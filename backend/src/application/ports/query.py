@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from src.domain.agent import Agent
 from src.domain.enums import EvaluationResult, EventType, SessionStatus, Source
 from src.domain.evaluation_report import EvaluationReport
 from src.domain.event import Event
@@ -56,3 +57,5 @@ class GovernanceQuery(Protocol):
         limit: int = 50,
         offset: int = 0,
     ) -> list[SessionSummary]: ...
+
+    async def list_agents(self) -> list[Agent]: ...

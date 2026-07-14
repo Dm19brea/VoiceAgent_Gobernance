@@ -11,7 +11,11 @@ class Agent:
     name: str
     objective: str
     vapi_assistant_id: str
-    description: str = ""
+    description: str | None = ""
+    """``None`` is a repository-level sentinel meaning "not provided": on
+    ``upsert_agent`` it leaves a pre-existing description untouched instead of
+    overwriting it. Never persisted as ``None``; a fresh insert stores ``""``.
+    """
     status: AgentStatus = AgentStatus.ACTIVE
     agent_id: UUID = field(default_factory=uuid4)
 

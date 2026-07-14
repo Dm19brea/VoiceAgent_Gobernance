@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from src.application.ports.conversation_judge import JudgeVerdict
 from src.domain.agent import Agent
 from src.domain.evaluation_report import EvaluationReport
@@ -22,6 +24,18 @@ class InMemoryGovernanceRepository:
 
     async def add_agent(self, agent: Agent) -> None:
         self.agents[agent.vapi_assistant_id] = agent
+
+    async def upsert_agent(self, agent: Agent) -> Agent:
+        existing = self.agents.get(agent.vapi_assistant_id)
+        if existing is not None:
+            description = (
+                agent.description if agent.description is not None else existing.description
+            )
+            resolved = replace(agent, agent_id=existing.agent_id, description=description)
+        else:
+            resolved = replace(agent, description=agent.description or "")
+        self.agents[agent.vapi_assistant_id] = resolved
+        return resolved
 
     async def get_session(self, session_id: str) -> Session | None:
         return self.sessions.get(session_id)

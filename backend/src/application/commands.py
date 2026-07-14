@@ -56,6 +56,21 @@ class ConversationContentCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class RegisterAgentCommand:
+    """Register or promote an agent by its Vapi assistant id.
+
+    ``description`` is ``None`` when the caller did not provide one, which
+    the repository interprets as "preserve the existing value on update";
+    an explicit (including empty-string) value always overwrites.
+    """
+
+    vapi_assistant_id: str
+    name: str
+    objective: str
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ConversationSignalCommand:
     """A retry-safe post-terminal derived conversation signal.
 
