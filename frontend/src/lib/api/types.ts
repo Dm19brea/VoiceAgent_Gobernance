@@ -39,3 +39,19 @@ export interface ActiveSession {
   speaking_role: "agent" | "user" | null;
   last_interruption_at: string | null;
 }
+
+export interface Agent {
+  agent_id: string;
+  vapi_assistant_id: string;
+  name: string;
+  objective: string;
+  description: string;
+  status: string;
+}
+
+export interface RegisterAgentInput {
+  vapi_assistant_id: string;
+  name: string;
+  objective: string;
+  description?: string;
+}

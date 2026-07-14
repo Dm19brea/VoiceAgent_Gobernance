@@ -13,6 +13,12 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
           <Link href="/" className="text-sm text-neutral-600 hover:underline dark:text-neutral-300">
             Sessions
           </Link>
+          <Link
+            href="/agents"
+            className="text-sm text-neutral-600 hover:underline dark:text-neutral-300"
+          >
+            Agents
+          </Link>
         </nav>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
