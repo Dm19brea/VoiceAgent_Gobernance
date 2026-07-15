@@ -157,6 +157,26 @@ def test_high_technical_error_rate_lowers_technical_and_global_score() -> None:
     assert high_error.score_global < low_error.score_global
 
 
+def test_clean_session_has_no_unrecovered_error_and_full_m_r02_score() -> None:
+    report = _evaluate(
+        _closed_session(
+            report={"turn_latencies_seconds": [2.0], "ended_reason": "customer-ended-call"}
+        )
+    )
+
+    m_r02 = next(m for m in report.metrics if m.code == "M-R02")
+    assert m_r02.normalized_score == 100
+    assert report.score_risk == 100
+
+    codes = {flag.code for flag in report.blocking_flags}
+    assert FLAG_UNRECOVERED_ERROR not in codes
+
+    m_t01 = next(m for m in report.metrics if m.code == "M-T01")
+    m_t02 = next(m for m in report.metrics if m.code == "M-T02")
+    assert m_t01.normalized_score == 67  # unchanged latency-derived normalisation
+    assert m_t02.normalized_score == 100
+
+
 def test_evaluation_is_deterministic() -> None:  # S7
     session = _closed_session(report={"ended_reason": "assistant-ended-call"})
     evidences = build_evidences(session)
