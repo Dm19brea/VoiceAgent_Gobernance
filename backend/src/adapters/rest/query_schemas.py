@@ -27,6 +27,7 @@ class SessionSummaryOut(BaseModel):
     """
 
     session_id: str
+    agent_name: str
     status: str
     started_at: datetime
     ended_at: datetime | None

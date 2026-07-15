@@ -2,6 +2,7 @@ export type SessionResult = "passed" | "failed" | "pending";
 
 export interface SessionSummary {
   session_id: string;
+  agent_name: string;
   status: string;
   started_at: string;
   ended_at: string | null;

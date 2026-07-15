@@ -1,7 +1,14 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { deleteAgent, getAgents, getReport, getSessions, registerAgent } from "@/lib/api/client";
+import {
+  deleteAgent,
+  getAgentSessions,
+  getAgents,
+  getReport,
+  getSessions,
+  registerAgent,
+} from "@/lib/api/client";
 import { apiBaseUrl } from "@/lib/api/config";
 import { server } from "@/test/msw/server";
 
@@ -12,6 +19,7 @@ describe("getSessions", () => {
         HttpResponse.json([
           {
             session_id: "call-1",
+            agent_name: "Citas",
             status: "ended",
             started_at: "2026-01-01T10:00:00Z",
             ended_at: null,
@@ -34,6 +42,40 @@ describe("getSessions", () => {
     server.use(http.get(`${apiBaseUrl}/sessions`, () => new HttpResponse(null, { status: 500 })));
 
     await expect(getSessions()).rejects.toThrow();
+  });
+});
+
+describe("getAgentSessions", () => {
+  it("fetches and returns typed sessions scoped to an agent", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/agents/:agentId/sessions`, () =>
+        HttpResponse.json([
+          {
+            session_id: "call-2",
+            agent_name: "Ventas",
+            status: "ended",
+            started_at: "2026-01-01T10:00:00Z",
+            ended_at: null,
+            result: "passed",
+            score_global: 82,
+          },
+        ]),
+      ),
+    );
+
+    const sessions = await getAgentSessions("a-1");
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].session_id).toBe("call-2");
+    expect(sessions[0].agent_name).toBe("Ventas");
+  });
+
+  it("throws on a non-2xx response", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/agents/:agentId/sessions`, () => new HttpResponse(null, { status: 500 })),
+    );
+
+    await expect(getAgentSessions("a-1")).rejects.toThrow();
   });
 });
 

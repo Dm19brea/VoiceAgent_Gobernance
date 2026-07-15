@@ -20,6 +20,7 @@ class SessionSummary:
 
     session_id: str
     agent_id: UUID
+    agent_name: str
     status: SessionStatus
     started_at: datetime
     ended_at: datetime | None

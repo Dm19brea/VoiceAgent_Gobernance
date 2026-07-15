@@ -8,6 +8,7 @@ import { SessionsTable } from "./SessionsTable";
 const rows: SessionSummary[] = [
   {
     session_id: "call-1",
+    agent_name: "Citas",
     status: "ended",
     started_at: "2026-01-01T10:00:00Z",
     ended_at: null,
@@ -22,6 +23,12 @@ describe("SessionsTable", () => {
 
     expect(screen.getByText("call-1")).toBeInTheDocument();
     expect(screen.getByText("passed")).toBeInTheDocument();
+  });
+
+  it("renders the Agent column with the session's agent name", () => {
+    render(<SessionsTable sessions={rows} />);
+
+    expect(screen.getByText("Citas")).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no sessions", () => {

@@ -134,6 +134,7 @@ def _to_session_out(session: Session) -> SessionOut:
 def _to_summary_out(summary: SessionSummary) -> SessionSummaryOut:
     return SessionSummaryOut(
         session_id=summary.session_id,
+        agent_name=summary.agent_name,
         status=summary.status.value,
         started_at=summary.started_at,
         ended_at=summary.ended_at,
