@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { getAgents, getReport, getSessions, registerAgent } from "@/lib/api/client";
+import { deleteAgent, getAgents, getReport, getSessions, registerAgent } from "@/lib/api/client";
 import { apiBaseUrl } from "@/lib/api/config";
 import { server } from "@/test/msw/server";
 
@@ -137,5 +137,26 @@ describe("registerAgent", () => {
     await expect(
       registerAgent({ vapi_assistant_id: "", name: "", objective: "" }),
     ).rejects.toMatchObject({ status: 422 });
+  });
+});
+
+describe("deleteAgent", () => {
+  it("sends a DELETE request to the agent's endpoint and resolves on 204", async () => {
+    let receivedMethod: string | undefined;
+    server.use(
+      http.delete(`${apiBaseUrl}/agents/:id`, ({ request }) => {
+        receivedMethod = request.method;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await expect(deleteAgent("a-1")).resolves.toBeUndefined();
+    expect(receivedMethod).toBe("DELETE");
+  });
+
+  it("throws an ApiError with status 404 when the agent is absent", async () => {
+    server.use(http.delete(`${apiBaseUrl}/agents/:id`, () => new HttpResponse(null, { status: 404 })));
+
+    await expect(deleteAgent("missing")).rejects.toMatchObject({ status: 404 });
   });
 });

@@ -1,8 +1,9 @@
 from dataclasses import replace
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,7 +40,10 @@ class SqlAlchemyGovernanceRepository:
 
     async def get_agent_by_assistant_id(self, assistant_id: str) -> Agent | None:
         row = await self._session.scalar(
-            select(AgentModel).where(AgentModel.vapi_assistant_id == assistant_id)
+            select(AgentModel).where(
+                AgentModel.vapi_assistant_id == assistant_id,
+                AgentModel.deleted_at.is_(None),
+            )
         )
         return _to_agent(row) if row is not None else None
 
@@ -54,11 +58,15 @@ class SqlAlchemyGovernanceRepository:
         update preserves the pre-existing row's primary key. ``description``
         is only included in ``set_`` when explicitly provided (not ``None``),
         so an omitted description preserves the prior value on update.
+        ``deleted_at`` is always reset to ``None`` on conflict (R2b): a
+        soft-deleted agent whose ``vapi_assistant_id`` is re-registered is
+        reactivated in place, never duplicated.
         """
         set_: dict[str, Any] = {
             "name": agent.name,
             "objective": agent.objective,
             "status": agent.status.value,
+            "deleted_at": None,
         }
         if agent.description is not None:
             set_["description"] = agent.description
@@ -71,6 +79,7 @@ class SqlAlchemyGovernanceRepository:
                 vapi_assistant_id=agent.vapi_assistant_id,
                 description=agent.description if agent.description is not None else "",
                 status=agent.status.value,
+                deleted_at=None,
             )
             .on_conflict_do_update(index_elements=["vapi_assistant_id"], set_=set_)
             .returning(AgentModel)
@@ -78,6 +87,23 @@ class SqlAlchemyGovernanceRepository:
         row = (await self._session.execute(stmt)).scalar_one()
         await self._session.flush()
         return _to_agent(row)
+
+    async def soft_delete_agent(self, agent_id: UUID, *, deleted_at: datetime) -> bool:
+        """Set ``deleted_at`` for a non-deleted agent, atomically.
+
+        Returns ``False`` (no row affected) both when ``agent_id`` does not
+        exist and when it is already soft-deleted, so the caller can map both
+        to a 404 (R2, S6: repeated delete is not idempotent-success).
+        """
+        stmt = (
+            update(AgentModel)
+            .where(AgentModel.agent_id == agent_id, AgentModel.deleted_at.is_(None))
+            .values(deleted_at=deleted_at)
+            .returning(AgentModel.agent_id)
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return result.scalar_one_or_none() is not None
 
     async def get_session(self, session_id: str) -> Session | None:
         return await self._load_session(session_id, for_update=False)
@@ -212,6 +238,7 @@ def _to_agent(row: AgentModel) -> Agent:
         description=row.description,
         status=AgentStatus(row.status),
         agent_id=row.agent_id,
+        deleted_at=row.deleted_at,
     )
 
 
@@ -223,6 +250,7 @@ def _to_agent_model(agent: Agent) -> AgentModel:
         vapi_assistant_id=agent.vapi_assistant_id,
         description=agent.description,
         status=agent.status.value,
+        deleted_at=agent.deleted_at,
     )
 
 

@@ -38,6 +38,7 @@ class AgentModel(Base):
     vapi_assistant_id: Mapped[str] = mapped_column(unique=True, index=True, nullable=False)
     description: Mapped[str] = mapped_column(default="", nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class SessionModel(Base):

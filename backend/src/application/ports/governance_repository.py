@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Protocol
+from uuid import UUID
 
 from src.domain.agent import Agent
 from src.domain.evaluation_report import EvaluationReport
@@ -20,6 +22,8 @@ class GovernanceRepository(Protocol):
     async def add_agent(self, agent: Agent) -> None: ...
 
     async def upsert_agent(self, agent: Agent) -> Agent: ...
+
+    async def soft_delete_agent(self, agent_id: UUID, *, deleted_at: datetime) -> bool: ...
 
     async def get_session(self, session_id: str) -> Session | None: ...
 

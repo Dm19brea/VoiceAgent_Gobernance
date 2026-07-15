@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { apiBaseUrl } from "@/lib/api/config";
 import { server } from "@/test/msw/server";
@@ -105,5 +105,76 @@ describe("AgentsView", () => {
     expect(screen.getByLabelText("Vapi assistant ID")).toHaveValue("va-1");
     expect(screen.getByLabelText("Name")).toHaveValue("Sales Agent");
     expect(screen.getByLabelText("Objective")).toHaveValue("Book demos");
+  });
+
+  it("deletes the agent and removes the row after confirmation", async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    let listCallCount = 0;
+    let deleteCalledWithId: string | undefined;
+    server.use(
+      http.get(`${apiBaseUrl}/agents`, () => {
+        listCallCount += 1;
+        return HttpResponse.json(listCallCount === 1 ? [AGENT_ONE] : []);
+      }),
+      http.delete(`${apiBaseUrl}/agents/:id`, ({ params }) => {
+        deleteCalledWithId = params.id as string;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderWithQuery(<AgentsView />);
+    await screen.findByText("Sales Agent");
+
+    await user.click(screen.getByRole("button", { name: /delete/i }));
+
+    await waitFor(() => expect(screen.queryByText("Sales Agent")).not.toBeInTheDocument());
+    expect(deleteCalledWithId).toBe("a-1");
+    expect(confirmSpy).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("does not call delete when the confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    let deleteCallCount = 0;
+    server.use(
+      http.get(`${apiBaseUrl}/agents`, () => HttpResponse.json([AGENT_ONE])),
+      http.delete(`${apiBaseUrl}/agents/:id`, () => {
+        deleteCallCount += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderWithQuery(<AgentsView />);
+    await screen.findByText("Sales Agent");
+
+    await user.click(screen.getByRole("button", { name: /delete/i }));
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(deleteCallCount).toBe(0);
+    expect(screen.getByText("Sales Agent")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("surfaces an error and keeps the row when the delete fails", async () => {
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    server.use(
+      http.get(`${apiBaseUrl}/agents`, () => HttpResponse.json([AGENT_ONE])),
+      http.delete(`${apiBaseUrl}/agents/:id`, () => new HttpResponse(null, { status: 404 })),
+    );
+
+    renderWithQuery(<AgentsView />);
+    await screen.findByText("Sales Agent");
+
+    await user.click(screen.getByRole("button", { name: /delete/i }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(screen.getByText("Sales Agent")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
   });
 });
