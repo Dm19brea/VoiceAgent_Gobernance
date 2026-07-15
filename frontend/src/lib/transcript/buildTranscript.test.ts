@@ -109,20 +109,41 @@ describe("buildTranscript", () => {
     expect(turns[0]?.content).toBe("user says 0");
   });
 
-  it("attaches interrupted=true to the turn nearest by timestamp, without altering order or content", () => {
+  it("marks the agent turn being spoken (the last agent turn at or before the interruption), not a later turn", () => {
+    // Realistic barge-in: the agent is speaking (turn 0), the user interrupts,
+    // then the user's words and the agent's next reply follow.
+    const events: EventOut[] = [
+      agentResponse(0, "2026-01-01T10:00:00Z", 1),
+      interruption("2026-01-01T10:00:02Z", 2),
+      userInput(1, "2026-01-01T10:00:03Z", 3),
+      agentResponse(2, "2026-01-01T10:00:05Z", 4),
+    ];
+
+    const turns = buildTranscript(events);
+
+    expect(turns.map((t) => t.turnIndex)).toEqual([0, 1, 2]);
+    expect(turns.map((t) => t.content)).toEqual([
+      "agent says 0",
+      "user says 1",
+      "agent says 2",
+    ]);
+    // The interrupted turn is the agent that was talking when barged in (turn 0),
+    // never the user turn nor the agent's later reply.
+    expect(turns[0]?.interrupted).toBe(true);
+    expect(turns[1]?.interrupted).toBe(false);
+    expect(turns[2]?.interrupted).toBe(false);
+  });
+
+  it("marks no turn as interrupted when no agent turn precedes the interruption", () => {
     const events: EventOut[] = [
       userInput(0, "2026-01-01T10:00:00Z", 1),
-      interruption("2026-01-01T10:00:04Z", 2),
+      interruption("2026-01-01T10:00:01Z", 2),
       agentResponse(1, "2026-01-01T10:00:05Z", 3),
     ];
 
     const turns = buildTranscript(events);
 
-    expect(turns.map((t) => t.turnIndex)).toEqual([0, 1]);
-    expect(turns.map((t) => t.content)).toEqual(["user says 0", "agent says 1"]);
-    // interruption at 10:00:04 is nearer to agent turn (10:00:05, delta 1s) than user turn (10:00:00, delta 4s)
-    expect(turns[0]?.interrupted).toBe(false);
-    expect(turns[1]?.interrupted).toBe(true);
+    expect(turns.every((t) => t.interrupted === false)).toBe(true);
   });
 
   it("marks no turn as interrupted when there are zero interruption events", () => {
