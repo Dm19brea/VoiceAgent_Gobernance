@@ -14,13 +14,6 @@ from src.application.ports.conversation_judge import JudgeVerdict
 from src.application.use_cases.detect_conversation_silence import TimedTurn
 from src.domain.enums import EventType, Source
 
-_TOOL_CALL_TYPES = {
-    "tool-calls",
-    "transfer-destination-request",
-    "knowledge-base-request",
-    "phone-call-control",
-    "voice-input",
-}
 _SYSTEM_WARNING_TYPES = {
     "transfer-update",
     "language-change-detected",
@@ -304,8 +297,6 @@ def _resolve(vapi_type: str, message: dict[str, Any]) -> tuple[EventType, Source
         return _resolve_role_message(message)
     if vapi_type == "user-interrupted":
         return (EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.USER)
-    if vapi_type in _TOOL_CALL_TYPES:
-        return (EventType.TOOL_CALLED, Source.TOOL)
     if vapi_type == "model-output":
         return (EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM)
     if vapi_type in _SYSTEM_WARNING_TYPES or vapi_type.startswith(_SYSTEM_WARNING_PREFIXES):

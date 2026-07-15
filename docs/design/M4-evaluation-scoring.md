@@ -21,8 +21,8 @@ reproducible.
    captured — no fake metrics.
 
 ### Metrics available now (from the 6 M3 evidences)
-The doc 3.3 catalogue (17 metrics) mostly needs data we do not yet capture (tool.*, latency,
-silences, interruptions, errors). M4 defines a **pragmatic metric set** derived from our real
+The doc 3.3 catalogue mostly needs data we do not yet capture (latency, silences,
+interruptions, errors). Tool-related metrics are out of project scope. M4 defines a **pragmatic metric set** derived from our real
 evidences, organised into the four dimensions and run through the general engine:
 
 | Metric (M4) | Dimension | From evidence | Normalisation |
@@ -50,7 +50,7 @@ Pure domain scoring functions first (normalisation, aggregation) with TDD, then 
 
 ### Out of scope (deferred)
 - LLM-as-judge implementation (a future `EvaluationPort` adapter).
-- Metrics needing unavailable events (tool.*, latency, silences, interruptions, errors).
+- Metrics needing unavailable events (latency, silences, interruptions, errors).
 - Multi-session agent validation (doc 3.5).
 - Per-agent configurable weights (defaults now; `agent.evaluation_config` later).
 

@@ -424,44 +424,6 @@ def test_technical_error_rate_zero_denominator_guard() -> None:
 
 
 @pytest.mark.parametrize(
-    ("agent_turns", "tool_calls", "expected_value"),
-    [
-        (2, 3, 1.5),
-        (0, 2, 0.0),
-    ],
-)
-def test_tool_usage_density_uses_tool_calls_per_agent_turn(
-    agent_turns: int, tool_calls: int, expected_value: float
-) -> None:
-    session = _session_with_events(
-        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(agent_turns)],
-        *[(EventType.TOOL_CALLED, Source.AGENT, {}) for _ in range(tool_calls)],
-    )
-    tool_events = [event for event in session.events if event.event_type is EventType.TOOL_CALLED]
-
-    density = _by_criterion(build_evidences(session))["tool_usage_density"]
-
-    assert density.evidence_type is EvidenceType.INFERRED
-    assert density.dimension is Dimension.OPERATIONAL
-    assert density.value == pytest.approx(expected_value)
-    assert density.source_events == [event.event_id for event in tool_events]
-
-
-@pytest.mark.parametrize(("agent_turns", "expected_value"), [(2, 0.0), (0, 0.0)])
-def test_tool_usage_density_zero_tool_calls_uses_trace_provenance(
-    agent_turns: int, expected_value: float
-) -> None:
-    session = _session_with_events(
-        *[(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}) for _ in range(agent_turns)],
-    )
-
-    density = _by_criterion(build_evidences(session))["tool_usage_density"]
-
-    assert density.value == pytest.approx(expected_value)
-    assert density.source_events == [e.event_id for e in session.events]
-
-
-@pytest.mark.parametrize(
     ("agent_turns", "user_turns", "warnings", "expected_value"),
     [
         (2, 2, 2, 0.5),
@@ -504,53 +466,22 @@ def test_system_warning_rate_zero_uses_trace_provenance(agent_turns: int, user_t
     assert rate.source_events == [e.event_id for e in session.events]
 
 
-def test_density_rate_evidences_are_unique() -> None:
+def test_system_warning_rate_evidence_is_unique() -> None:
     with_density_events = _session_with_events(
         (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
         (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
-        (EventType.TOOL_CALLED, Source.AGENT, {}),
         (EventType.SYSTEM_WARNING, Source.SYSTEM, {}),
     )
 
     evidences = build_evidences(with_density_events)
     criteria = [evidence.criterion for evidence in evidences]
 
-    assert criteria.count("tool_usage_density") == 1
     assert criteria.count("system_warning_rate") == 1
     assert len(criteria) == len(set(criteria))
 
 
-def test_tool_usage_density_is_informational_and_never_changes_scoring() -> None:
-    # tool_usage_density feeds M-O04, weight 0 (design D3): the metric is emitted for
-    # traceability but excluded from scoring, so adding tool calls alone never moves
-    # any Metric's normalized_score.
-    baseline = _session_with_events(
-        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
-        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
-    )
-    with_tool_calls = _session_with_events(
-        (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),
-        (EventType.CONVERSATION_USER_INPUT, Source.USER, {}),
-        (EventType.TOOL_CALLED, Source.AGENT, {}),
-    )
-
-    baseline_metrics = {
-        m.code: m.normalized_score for m in build_metrics(baseline, build_evidences(baseline))
-    }
-    with_tool_calls_metrics = {
-        m.code: m.normalized_score
-        for m in build_metrics(with_tool_calls, build_evidences(with_tool_calls))
-    }
-
-    shared_codes = set(baseline_metrics) & set(with_tool_calls_metrics)
-    assert "M-O04" in shared_codes
-    for code in shared_codes:
-        assert baseline_metrics[code] == with_tool_calls_metrics[code]
-
-
 def test_system_warning_rate_now_moves_the_risk_score() -> None:
-    # system_warning_rate feeds M-R04 (weight 1): unlike tool_usage_density, this
-    # evidence is wired to real scoring (design D2), so adding a warning must lower
+    # system_warning_rate feeds M-R04 (weight 1), so adding a warning must lower
     # M-R04's normalized_score.
     baseline = _session_with_events(
         (EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, {}),

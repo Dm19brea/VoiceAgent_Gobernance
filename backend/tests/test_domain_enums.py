@@ -23,11 +23,6 @@ def test_event_type_values_include_doc_31_taxonomy() -> None:
         "conversation.topic_change",
         "conversation.goal_achieved",
         "conversation.goal_failed",
-        "tool.called",
-        "tool.response_received",
-        "tool.failed",
-        "tool.timeout",
-        "tool.retry",
         "system.latency_measured",
         "system.model_invocation",
         "system.error",
@@ -44,7 +39,6 @@ def test_source_values() -> None:
         "user",
         "platform",
         "system",
-        "tool",
     }
 
 

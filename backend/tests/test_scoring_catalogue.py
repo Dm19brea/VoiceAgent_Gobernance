@@ -25,7 +25,6 @@ def _session(
     failed: bool = False,
     goal_achieved: bool | None = None,
     flag_count: int = 0,
-    tool_calls: int = 0,
     warnings: int = 0,
     errors: int = 0,
     silences: int = 0,
@@ -43,8 +42,6 @@ def _session(
         session.record(EventType.CONVERSATION_GOAL_ACHIEVED, Source.SYSTEM, START, {})
     elif goal_achieved is False:
         session.record(EventType.CONVERSATION_GOAL_FAILED, Source.SYSTEM, START, {})
-    for _ in range(tool_calls):
-        session.record(EventType.TOOL_CALLED, Source.TOOL, START, {})
     for _ in range(warnings):
         session.record(EventType.SYSTEM_WARNING, Source.SYSTEM, START, {})
     for _ in range(errors):
@@ -265,16 +262,8 @@ def test_m_t01_and_m_t02_use_seconds_directly_without_reconverting() -> None:
     assert metrics["M-T02"].raw_value == pytest.approx(7.234)
 
 
-# -- Operational dimension: M-O04 (informational, weight 0) -----------------------------------
-
-
-def test_m_o04_tool_usage_density_is_informational_weight_zero() -> None:
-    metrics = _metrics(_closed_session(tool_calls=2))
-
-    assert metrics["M-O04"].weight == 0
-    assert metrics["M-O04"].normalized_score == 100
-    assert metrics["M-O04"].dimension is Dimension.OPERATIONAL
-    assert metrics["M-O04"].raw_value == pytest.approx(2.0)  # 2 tool calls / 1 agent turn
+def test_tool_metrics_are_not_in_the_scoring_catalogue() -> None:
+    assert all(metric.code != "M-O04" for metric in _metrics(_closed_session()).values())
 
 
 # -- Legacy retirement -------------------------------------------------------------------------
