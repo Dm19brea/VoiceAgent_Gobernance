@@ -3,9 +3,12 @@
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.adapters.rest.agent_routes import get_assistant_directory
 from src.domain.agent import Agent
 from src.domain.enums import AgentStatus
 from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
+from src.main import app
+from tests.fakes import FakeAssistantDirectory
 
 
 async def test_register_creates_new_agent(client: AsyncClient) -> None:
@@ -108,3 +111,69 @@ async def test_list_agents_returns_mixed_statuses(
     assert body["va-5"]["status"] == "unregistered"
     assert body["va-6"]["status"] == "active"
     assert body["va-6"]["name"] == "Citas"
+
+
+async def test_register_existing_assistant_returns_active_agent(client: AsyncClient) -> None:
+    """R1 S1 — assistant verified to exist in Vapi → 200 ACTIVE, persisted."""
+    directory = FakeAssistantDirectory(exists=True)
+    app.dependency_overrides[get_assistant_directory] = lambda: directory
+
+    response = await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-exists", "name": "Citas", "objective": "Confirmar"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "active"
+    assert body["vapi_assistant_id"] == "va-exists"
+    assert directory.calls == ["va-exists"]
+
+
+async def test_register_nonexistent_assistant_returns_422_and_persists_nothing(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """R1 S2 — assistant not found in Vapi → 422, no agent row created."""
+    directory = FakeAssistantDirectory(exists=False)
+    app.dependency_overrides[get_assistant_directory] = lambda: directory
+
+    response = await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-missing", "name": "Citas", "objective": "Confirmar"},
+    )
+
+    assert response.status_code == 422
+    assert directory.calls == ["va-missing"]
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    assert await repo.get_agent_by_assistant_id("va-missing") is None
+
+
+async def test_register_when_vapi_unavailable_returns_502_and_persists_nothing(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """R1 S3 — Vapi unreachable/erroring → 502 (fail-closed), no agent row created."""
+    directory = FakeAssistantDirectory(unavailable=True)
+    app.dependency_overrides[get_assistant_directory] = lambda: directory
+
+    response = await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-down", "name": "Citas", "objective": "Confirmar"},
+    )
+
+    assert response.status_code == 502
+    assert directory.calls == ["va-down"]
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    assert await repo.get_agent_by_assistant_id("va-down") is None
+
+
+async def test_register_calls_directory_with_submitted_assistant_id(client: AsyncClient) -> None:
+    """R1 S4 — the directory is invoked with the exact submitted id."""
+    directory = FakeAssistantDirectory(exists=True)
+    app.dependency_overrides[get_assistant_directory] = lambda: directory
+
+    await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-precise-id", "name": "Citas", "objective": "Confirmar"},
+    )
+
+    assert directory.calls == ["va-precise-id"]

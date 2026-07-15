@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from src.application.ports.assistant_directory import AssistantDirectoryUnavailable
 from src.application.ports.conversation_judge import JudgeVerdict
 from src.domain.agent import Agent
 from src.domain.evaluation_report import EvaluationReport
@@ -77,6 +78,28 @@ class InMemoryGovernanceRepository:
 
     async def get_report_by_session(self, session_id: str) -> EvaluationReport | None:
         return self.reports.get(session_id)
+
+
+class FakeAssistantDirectory:
+    """Deterministic double implementing the AssistantDirectory port for tests.
+
+    ``exists=True`` (default) simulates a real Vapi assistant. ``exists=False``
+    simulates a not-found assistant (returns ``False``; the use case is
+    responsible for turning that into ``AssistantNotFoundError``).
+    ``unavailable=True`` simulates a Vapi outage (raises
+    ``AssistantDirectoryUnavailable``), taking precedence over ``exists``.
+    """
+
+    def __init__(self, exists: bool = True, unavailable: bool = False) -> None:
+        self.exists_result = exists
+        self.unavailable = unavailable
+        self.calls: list[str] = []
+
+    async def exists(self, assistant_id: str) -> bool:
+        self.calls.append(assistant_id)
+        if self.unavailable:
+            raise AssistantDirectoryUnavailable(f"Vapi unavailable for {assistant_id}")
+        return self.exists_result
 
 
 class FakeConversationJudge:

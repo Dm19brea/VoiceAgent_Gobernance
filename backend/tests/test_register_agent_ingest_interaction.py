@@ -6,12 +6,12 @@ from src.application.commands import IngestEventCommand, RegisterAgentCommand
 from src.application.use_cases.ingest_event import IngestEvent
 from src.application.use_cases.register_agent import RegisterAgent
 from src.domain.enums import AgentStatus, EventType, Source
-from tests.fakes import InMemoryGovernanceRepository
+from tests.fakes import FakeAssistantDirectory, InMemoryGovernanceRepository
 
 
 async def test_ingest_event_uses_preregistered_active_agent_unchanged() -> None:
     repo = InMemoryGovernanceRepository()
-    registered = await RegisterAgent(repo).execute(
+    registered = await RegisterAgent(repo, FakeAssistantDirectory()).execute(
         RegisterAgentCommand(vapi_assistant_id="va-4", name="Citas", objective="Confirmar")
     )
 

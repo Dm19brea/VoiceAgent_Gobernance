@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_timeout_seconds: float = 10.0
+    vapi_api_key: str = ""
+    vapi_base_url: str = "https://api.vapi.ai"
+    vapi_timeout_seconds: float = 10.0
 
     @property
     def cors_origin_list(self) -> list[str]:
