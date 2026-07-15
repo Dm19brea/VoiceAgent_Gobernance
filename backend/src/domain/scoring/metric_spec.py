@@ -126,7 +126,7 @@ METRIC_SPECS: tuple[MetricSpec, ...] = (
         unit="bool",
         weight=3.0,
         transform=identity,
-        normalize=normalisation.binary,
+        normalize=normalisation.inverse_binary,
     ),
     MetricSpec(
         code="M-R04",

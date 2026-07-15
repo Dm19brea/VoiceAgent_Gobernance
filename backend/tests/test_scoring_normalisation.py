@@ -2,6 +2,7 @@
 
 from src.domain.scoring.normalisation import (
     binary,
+    inverse_binary,
     latency,
     occurrences,
     percentage_direct,
@@ -20,6 +21,16 @@ def test_percentage_inverse_is_hundred_minus_value() -> None:
 def test_binary_maps_one_to_hundred_and_zero_to_zero() -> None:
     assert binary(1) == 100
     assert binary(0) == 0
+
+
+def test_inverse_binary_maps_zero_to_hundred_and_one_to_zero() -> None:
+    assert inverse_binary(0) == 100
+    assert inverse_binary(1) == 0
+
+
+def test_inverse_binary_maps_any_truthy_non_zero_value_to_zero() -> None:
+    assert inverse_binary(2) == 0
+    assert inverse_binary(0.5) == 0
 
 
 def test_occurrences_applies_penalty_per_occurrence() -> None:

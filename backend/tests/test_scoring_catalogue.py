@@ -153,14 +153,16 @@ def test_m_r01_is_omitted_when_its_evidence_value_is_none() -> None:
 # -- Risk dimension: M-R02, M-R04 ----------------------------------------------------------
 
 
-@pytest.mark.parametrize(("errors", "failed", "expected_score"), [(1, True, 100), (0, False, 0)])
-def test_m_r02_unrecovered_error_present_is_binary(
+@pytest.mark.parametrize(("errors", "failed", "expected_score"), [(0, False, 100), (1, True, 0)])
+def test_m_r02_unrecovered_error_present_is_inversely_scored(
     errors: int, failed: bool, expected_score: float
 ) -> None:
     metrics = _metrics(_session(errors=errors, failed=failed))
 
     assert metrics["M-R02"].normalized_score == expected_score
     assert metrics["M-R02"].weight == 3
+    assert metrics["M-R02"].dimension is Dimension.RISK
+    assert metrics["M-R02"].code == "M-R02"
 
 
 def test_m_r04_system_warning_rate_rescales_before_normalising() -> None:

@@ -24,6 +24,11 @@ def binary(value: float) -> float:
     return 100.0 if value else 0.0
 
 
+def inverse_binary(value: float) -> float:
+    """Health-negative boolean: falsy is healthy (100), truthy is unhealthy (0)."""
+    return 0.0 if value else 100.0
+
+
 def occurrences(count: float, penalty: float) -> float:
     """Each occurrence subtracts ``penalty`` points from a perfect score."""
     return _clamp(100.0 - count * penalty)
