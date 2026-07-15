@@ -1,4 +1,4 @@
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from src.adapters.rest.agent_routes import get_assistant_directory
 from src.infrastructure.config import settings
 from src.infrastructure.db.base import Base
 from src.infrastructure.db.models import (
@@ -23,6 +24,20 @@ from src.infrastructure.db.models import (
 )
 from src.infrastructure.db.session import get_session
 from src.main import app
+from tests.fakes import FakeAssistantDirectory
+
+
+@pytest.fixture(autouse=True)
+def _offline_assistant_directory() -> Generator[None, None, None]:
+    """Keep Vapi assistant verification offline in every test.
+
+    Defaults to "assistant exists" so existing ``POST /agents`` tests keep
+    passing without the real Vapi API ever being reachable in the test
+    process. Tests exercising S2/S3 override this dependency per-test.
+    """
+    app.dependency_overrides[get_assistant_directory] = lambda: FakeAssistantDirectory(exists=True)
+    yield
+    app.dependency_overrides.pop(get_assistant_directory, None)
 
 
 @pytest.fixture(autouse=True)
