@@ -35,6 +35,10 @@ export function getSessions(): Promise<SessionSummary[]> {
   return getJson<SessionSummary[]>("/sessions");
 }
 
+export function getAgentSessions(agentId: string): Promise<SessionSummary[]> {
+  return getJson<SessionSummary[]>(`/agents/${agentId}/sessions`);
+}
+
 export function getReport(sessionId: string): Promise<Report> {
   return getJson<Report>(`/sessions/${sessionId}/report`);
 }

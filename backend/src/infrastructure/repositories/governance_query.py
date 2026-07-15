@@ -4,9 +4,10 @@ Reuses the write repository's entity mapping for the single-aggregate reads and 
 read-optimised queries (filtered events, agent-session listing joined with reports).
 """
 
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.ports.query import SessionSummary
@@ -65,11 +66,7 @@ class SqlAlchemyGovernanceQuery:
         offset: int = 0,
     ) -> list[SessionSummary]:
         stmt = (
-            select(SessionModel, EvaluationReportModel)
-            .outerjoin(
-                EvaluationReportModel,
-                EvaluationReportModel.session_id == SessionModel.session_id,
-            )
+            _summary_select()
             .where(SessionModel.agent_id == agent_id)
             .order_by(SessionModel.started_at.desc())
         )
@@ -78,21 +75,20 @@ class SqlAlchemyGovernanceQuery:
         stmt = stmt.limit(limit).offset(offset)
 
         rows = (await self._session.execute(stmt)).all()
-        return [_to_summary(session_row, report_row) for session_row, report_row in rows]
+        return [
+            _to_summary(session_row, report_row, agent_name)
+            for session_row, report_row, agent_name in rows
+        ]
 
     async def list_sessions(self, *, limit: int = 50, offset: int = 0) -> list[SessionSummary]:
         stmt = (
-            select(SessionModel, EvaluationReportModel)
-            .outerjoin(
-                EvaluationReportModel,
-                EvaluationReportModel.session_id == SessionModel.session_id,
-            )
-            .order_by(SessionModel.started_at.desc())
-            .limit(limit)
-            .offset(offset)
+            _summary_select().order_by(SessionModel.started_at.desc()).limit(limit).offset(offset)
         )
         rows = (await self._session.execute(stmt)).all()
-        return [_to_summary(session_row, report_row) for session_row, report_row in rows]
+        return [
+            _to_summary(session_row, report_row, agent_name)
+            for session_row, report_row, agent_name in rows
+        ]
 
     async def list_agents(self) -> list[Agent]:
         rows = (
@@ -105,12 +101,32 @@ class SqlAlchemyGovernanceQuery:
         return [_to_agent(row) for row in rows]
 
 
+def _summary_select() -> Select[Any]:
+    """Shared select for session summaries (R1/R3, ADR-1/ADR-2).
+
+    INNER JOIN to ``AgentModel`` resolves ``agent_name`` without a ``deleted_at``
+    predicate, so a soft-deleted agent's sessions keep their name (R2). The
+    optional evaluation report stays an OUTER JOIN since a session may be
+    unevaluated (pending). Both ``list_sessions`` and ``list_agent_sessions``
+    build on this so their emitted shape is byte-identical (R3/S4).
+    """
+    return (
+        select(SessionModel, EvaluationReportModel, AgentModel.name)
+        .join(AgentModel, SessionModel.agent_id == AgentModel.agent_id)
+        .outerjoin(
+            EvaluationReportModel,
+            EvaluationReportModel.session_id == SessionModel.session_id,
+        )
+    )
+
+
 def _to_summary(
-    session_row: SessionModel, report_row: EvaluationReportModel | None
+    session_row: SessionModel, report_row: EvaluationReportModel | None, agent_name: str
 ) -> SessionSummary:
     return SessionSummary(
         session_id=session_row.session_id,
         agent_id=session_row.agent_id,
+        agent_name=agent_name,
         status=SessionStatus(session_row.status),
         started_at=session_row.started_at,
         ended_at=session_row.ended_at,

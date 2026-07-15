@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import type { SessionSummary } from "@/lib/api/types";
 
-const HEADERS = ["Session", "Status", "Result", "Score", "Started"];
+const HEADERS = ["Session", "Agent", "Status", "Result", "Score", "Started"];
 
 export function SessionsTable({ sessions }: Readonly<{ sessions: SessionSummary[] }>) {
   if (sessions.length === 0) {
@@ -34,6 +34,7 @@ export function SessionsTable({ sessions }: Readonly<{ sessions: SessionSummary[
                 {session.session_id}
               </Link>
             </td>
+            <td className="py-2 pr-4">{session.agent_name}</td>
             <td className="py-2 pr-4">{session.status}</td>
             <td className="py-2 pr-4">{session.result}</td>
             <td className="py-2 pr-4">{session.score_global ?? "—"}</td>

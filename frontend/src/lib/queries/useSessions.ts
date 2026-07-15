@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getSessions } from "@/lib/api/client";
+import { getAgentSessions, getSessions } from "@/lib/api/client";
 
-export function useSessions() {
-  return useQuery({ queryKey: ["sessions"], queryFn: getSessions });
+export function useSessions(agentId: string | null = null) {
+  return useQuery({
+    queryKey: ["sessions", agentId ?? "all"],
+    queryFn: () => (agentId ? getAgentSessions(agentId) : getSessions()),
+  });
 }

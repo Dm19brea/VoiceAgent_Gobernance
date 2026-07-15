@@ -94,8 +94,34 @@ async def test_list_agent_sessions_reports_results_and_pending(db_session: Async
 
     assert summaries["call-a"].result is EvaluationResult.PASSED
     assert summaries["call-a"].score_global == 80
+    assert summaries["call-a"].agent_name == "Citas"
     assert summaries["call-b"].result is None  # unevaluated -> pending
     assert summaries["call-b"].score_global is None
+    assert summaries["call-b"].agent_name == "Citas"
+
+
+async def test_list_sessions_includes_agent_name(db_session: AsyncSession) -> None:
+    await _seed(db_session)
+    query = SqlAlchemyGovernanceQuery(db_session)
+
+    summaries = {s.session_id: s for s in await query.list_sessions()}
+
+    assert summaries["call-a"].agent_name == "Citas"
+    assert summaries["call-b"].agent_name == "Citas"
+
+
+async def test_soft_deleted_agent_still_named(db_session: AsyncSession) -> None:
+    agent = await _seed(db_session)
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    await repo.soft_delete_agent(agent.agent_id, deleted_at=datetime.now(UTC))
+    await db_session.commit()
+    query = SqlAlchemyGovernanceQuery(db_session)
+
+    all_sessions = {s.session_id: s for s in await query.list_sessions()}
+    agent_sessions = {s.session_id: s for s in await query.list_agent_sessions(agent.agent_id)}
+
+    assert all_sessions["call-a"].agent_name == "Citas"
+    assert agent_sessions["call-a"].agent_name == "Citas"
 
 
 async def test_list_agent_sessions_filters_by_result(db_session: AsyncSession) -> None:
