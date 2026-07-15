@@ -8,7 +8,11 @@ from loguru import logger
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.adapters.rest.vapi_mapping import map_vapi_event, map_vapi_system_observations
+from src.adapters.rest.vapi_mapping import (
+    extract_assistant_id,
+    map_vapi_event,
+    map_vapi_system_observations,
+)
 from src.application.commands import IngestEventCommand, SystemObservationCommand
 from src.application.use_cases.ingest_event import IngestEvent
 from src.application.use_cases.record_system_observation import RecordSystemObservation
@@ -52,17 +56,33 @@ class VapiWebhook(BaseModel):
 
 @router.post("/webhooks/vapi", status_code=200)
 async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, str]:
-    """Receive a Vapi webhook, land it raw, and promote it to the domain (M2.7).
+    """Receive a Vapi webhook and persist it only for a governed agent (M2.7, R3).
 
-    The raw body is always stored in ``raw_events`` (immutable landing). If the
-    Vapi type maps to a canonical event, it is also ingested into the
-    Session/Event trace. Always returns 200, as Vapi ignores other status codes.
+    A governed agent (registered, non-deleted) is resolved by ``assistantId``
+    BEFORE anything is persisted. Calls for an unknown or soft-deleted
+    assistant are discarded entirely: no ``raw_events`` row, no Session/Event,
+    no downstream Celery/Redis/latency side effects. For a governed agent, the
+    raw body is landed in ``raw_events`` (immutable landing) and, if the Vapi
+    type maps to a canonical event, promoted into the Session/Event trace,
+    exactly as before this change. Always returns 200, as Vapi ignores other
+    status codes.
     """
     event_type = webhook.message.type
     raw = webhook.model_dump(mode="json")
     receipt_started = perf_counter()
     receipt_at = datetime.now(UTC)
     logger.info("Vapi webhook received: type={}", event_type)
+
+    repository = SqlAlchemyGovernanceRepository(session)
+    assistant_id = extract_assistant_id(raw)
+    agent = await repository.get_agent_by_assistant_id(assistant_id) if assistant_id else None
+    if agent is None:
+        logger.info(
+            "Vapi webhook discarded for ungoverned assistant: type={} assistant_id={}",
+            event_type,
+            assistant_id,
+        )
+        return {"status": "ignored"}
 
     canonical_event: Event | None = None
     command: IngestEventCommand | None = None
@@ -72,7 +92,6 @@ async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, s
         await session.flush()
 
         command = map_vapi_event(raw)
-        repository = SqlAlchemyGovernanceRepository(session)
         if command is not None and command.event_type not in _LIVE_ONLY_EVENTS:
             canonical_event = await IngestEvent(repository).execute(command)
         for observation in map_vapi_system_observations(raw, raw_event.id):

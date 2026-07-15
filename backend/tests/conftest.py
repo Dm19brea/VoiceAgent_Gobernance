@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.adapters.rest.agent_routes import get_assistant_directory
+from src.domain.agent import Agent
 from src.infrastructure.config import settings
 from src.infrastructure.db.base import Base
 from src.infrastructure.db.models import (
@@ -23,6 +24,7 @@ from src.infrastructure.db.models import (
     SessionModel,
 )
 from src.infrastructure.db.session import get_session
+from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
 from src.main import app
 from tests.fakes import FakeAssistantDirectory
 
@@ -94,3 +96,25 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+async def insert_governed_agent(
+    db_session: AsyncSession, vapi_assistant_id: str, *, name: str | None = None
+) -> Agent:
+    """Insert a registered, non-deleted agent for webhook/ingestion tests (R3).
+
+    Webhook ingestion now discards any call whose ``assistantId`` does not
+    resolve to a governed (registered, non-deleted) agent, so tests exercising
+    the governed path must register the agent up front instead of relying on
+    the removed ingestion auto-provisioning.
+    """
+    repository = SqlAlchemyGovernanceRepository(db_session)
+    agent = await repository.upsert_agent(
+        Agent(
+            name=name or f"Agent {vapi_assistant_id}",
+            objective="test objective",
+            vapi_assistant_id=vapi_assistant_id,
+        )
+    )
+    await db_session.commit()
+    return agent

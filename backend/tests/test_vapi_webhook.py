@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.db.models import RawEvent
+from tests.conftest import insert_governed_agent
 
 # Simulated Vapi server-message webhook: everything is wrapped in "message"
 # with a discriminating "type". A status-update in-progress marks a started call.
@@ -12,7 +13,7 @@ VAPI_STATUS_UPDATE: dict[str, Any] = {
     "message": {
         "type": "status-update",
         "status": "in-progress",
-        "call": {"id": "vapi-call-123"},
+        "call": {"id": "vapi-call-123", "assistantId": "asst-raw"},
         "timestamp": 1719655500000,
     }
 }
@@ -21,6 +22,8 @@ VAPI_STATUS_UPDATE: dict[str, Any] = {
 async def test_vapi_webhook_persists_raw_event(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-raw")
+
     response = await client.post("/webhooks/vapi", json=VAPI_STATUS_UPDATE)
 
     # Vapi ignores any non-200 response.

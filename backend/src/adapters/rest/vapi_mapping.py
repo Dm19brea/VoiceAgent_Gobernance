@@ -82,6 +82,22 @@ def classify_terminal_event(ended_reason: object) -> EventType:
     return EventType.SESSION_ENDED
 
 
+def extract_assistant_id(webhook: dict[str, Any]) -> str | None:
+    """Extract the Vapi assistant id from a webhook payload, independent of event mapping.
+
+    Unlike ``map_vapi_event``, this never returns ``None`` merely because the
+    Vapi message type has no canonical mapping — it is used to resolve the
+    governed agent (R3) BEFORE any persistence decision, so unmapped event
+    types for a governed agent still land raw exactly as before, while
+    unknown/soft-deleted assistants are discarded entirely regardless of type.
+    """
+    message: dict[str, Any] = webhook.get("message") or {}
+    call: dict[str, Any] = message.get("call") or {}
+    assistant: dict[str, Any] = message.get("assistant") or {}
+    assistant_id = call.get("assistantId") or assistant.get("id")
+    return assistant_id if isinstance(assistant_id, str) and assistant_id else None
+
+
 def map_vapi_event(webhook: dict[str, Any]) -> IngestEventCommand | None:
     """Translate a Vapi server-message webhook to a canonical ingest command.
 

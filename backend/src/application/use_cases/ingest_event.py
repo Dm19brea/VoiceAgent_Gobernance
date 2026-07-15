@@ -1,17 +1,19 @@
 from src.application.commands import IngestEventCommand
 from src.application.ports.governance_repository import GovernanceRepository
-from src.domain.agent import Agent
-from src.domain.enums import AgentStatus, EventType, SessionStatus
+from src.domain.enums import EventType, SessionStatus
 from src.domain.event import Event
 from src.domain.session import Session
 
 
 class IngestEvent:
-    """Resolve/create the Session for a call and record a canonical event.
+    """Resolve the Session for a call and record a canonical event.
 
     Idempotent on session boundaries: duplicate `session.started` and any event
     after the session closed are ignored (Vapi emits several near the edges).
-    Unknown agents are auto-provisioned so no session is ever lost.
+    Callers MUST resolve a governed (registered, non-deleted) agent before
+    invoking this use case (R3): webhooks for unknown/soft-deleted assistants
+    are discarded upstream and never reach here. No agent is ever
+    auto-provisioned by ingestion.
     """
 
     def __init__(self, repository: GovernanceRepository) -> None:
@@ -20,13 +22,7 @@ class IngestEvent:
     async def execute(self, command: IngestEventCommand) -> Event | None:
         agent = await self._repo.get_agent_by_assistant_id(command.assistant_id)
         if agent is None:
-            agent = Agent(
-                name=f"Unregistered {command.assistant_id}",
-                objective="(unregistered)",
-                vapi_assistant_id=command.assistant_id,
-                status=AgentStatus.UNREGISTERED,
-            )
-            await self._repo.add_agent(agent)
+            return None  # defensive: caller should have gated on a governed agent already
 
         session = await self._repo.get_session_for_update(command.call_id)
         if session is None:
