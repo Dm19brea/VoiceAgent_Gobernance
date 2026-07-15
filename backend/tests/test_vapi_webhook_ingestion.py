@@ -6,11 +6,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.db.models import EventModel, RawEvent, SessionModel
+from tests.conftest import insert_governed_agent
 
 
 async def test_vapi_webhook_creates_session_and_event(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-w")
     payload: dict[str, Any] = {
         "message": {
             "type": "status-update",
@@ -37,6 +39,7 @@ async def test_vapi_webhook_creates_session_and_event(
 async def test_end_of_call_report_with_error_reason_fails_the_session(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-f")
     call = {"id": "call-f", "assistantId": "asst-f"}
     started = {"message": {"type": "status-update", "status": "in-progress", "call": call}}
     ended = {
@@ -73,6 +76,7 @@ async def test_end_of_call_report_with_error_reason_fails_the_session(
 async def test_terminal_failure_redelivery_persists_one_correlated_error_and_one_lifecycle_event(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-terminal-retry")
     call = {"id": "call-terminal-retry", "assistantId": "asst-terminal-retry"}
     started = {"message": {"type": "status-update", "status": "in-progress", "call": call}}
     failed = {
@@ -106,6 +110,7 @@ async def test_terminal_observation_failure_rolls_back_raw_error_and_lifecycle(
 ) -> None:
     from src.application.use_cases.record_system_observation import RecordSystemObservation
 
+    await insert_governed_agent(db_session, "asst-atomic")
     call = {"id": "call-atomic", "assistantId": "asst-atomic"}
     started = {"message": {"type": "status-update", "status": "in-progress", "call": call}}
     failed = {
@@ -136,6 +141,7 @@ async def test_terminal_observation_failure_rolls_back_raw_error_and_lifecycle(
 async def test_model_and_hang_remain_canonical_while_specialized_message_stays_raw_only(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-regression")
     call = {"id": "call-regression", "assistantId": "asst-regression"}
     payloads = [
         {"message": {"type": "status-update", "status": "in-progress", "call": call}},
@@ -165,6 +171,7 @@ async def test_model_and_hang_remain_canonical_while_specialized_message_stays_r
 async def test_duplicate_transcript_threat_persists_one_normalized_flag(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-threat")
     call = {"id": "call-threat", "assistantId": "asst-threat"}
     started = {"message": {"type": "status-update", "status": "in-progress", "call": call}}
     ended = {
@@ -207,6 +214,7 @@ async def test_duplicate_transcript_threat_persists_one_normalized_flag(
 async def test_second_terminal_event_after_failed_is_ignored(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-g")
     call = {"id": "call-g", "assistantId": "asst-g"}
     started = {"message": {"type": "status-update", "status": "in-progress", "call": call}}
     failed = {
@@ -246,6 +254,7 @@ async def test_second_terminal_event_after_failed_is_ignored(
 async def test_speech_update_turns_are_live_only_and_not_persisted(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
+    await insert_governed_agent(db_session, "asst-turns")
     call = {"id": "call-turns", "assistantId": "asst-turns"}
 
     def speech(status: str, role: str) -> dict[str, Any]:
