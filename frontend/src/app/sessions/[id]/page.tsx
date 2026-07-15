@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ReportView } from "@/components/ReportView";
+import { TranscriptView } from "@/components/TranscriptView";
 
 export default async function SessionReportPage({
   params,
@@ -14,6 +15,9 @@ export default async function SessionReportPage({
       </Link>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight">Evaluation report</h1>
       <p className="mt-1 font-mono text-xs text-neutral-500">{id}</p>
+      <div className="mt-6">
+        <TranscriptView sessionId={id} />
+      </div>
       <div className="mt-6">
         <ReportView sessionId={id} />
       </div>

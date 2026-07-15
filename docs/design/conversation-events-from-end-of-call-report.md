@@ -39,7 +39,7 @@ entries contain timing but no `interrupted: true` field.
 | `conversation.turn_started` | ✅ Yes (post-terminal) | `messages[].time` / `secondsFromStart` | timing only available at close |
 | `conversation.turn_ended` | ✅ Yes (post-terminal) | `messages[].endTime` | timing only available at close |
 | `conversation.interruption_detected` | ❌ **No** | — (no interruption flag in report) | must stay real-time (`user-interrupted`) |
-| `conversation.silence_detected` (pending) | ✅ Derivable | gap between consecutive `endTime` → next `time` | compute inter-turn silence from timestamps |
+| `conversation.silence_detected` (implementado) | ✅ Derivable | gap between consecutive `endTime` → next `time` | compute inter-turn silence from timestamps |
 | `conversation.topic_change` (pending) | ⚠️ Only with NLU | `transcript` + new analysis | needs segmentation logic |
 | `conversation.goal_achieved` / `goal_failed` (pending) | ✅ Derivable | `analysis.successEvaluation` or own LLM judge over `transcript` | see Option C / LLM-judge design |
 
@@ -91,13 +91,21 @@ post-terminal.
   not already captured elsewhere — turn boundaries are temporal metadata, not an
   independent auditable fact.
 
-- ✅ RESOLVED **silence_detected — out of scope for this change (deferred).**
-  It is a pending (unimplemented) event, not something broken to fix here, and it
-  needs a governance-level threshold decision (what gap counts as silence: 1s? 3s?
-  user silence vs. agent latency?) that is business criteria, not a technical knob.
-  The data is derivable from the report timing gaps, so deferring loses nothing —
-  the source already exists and needs no new webhook. Tackle it as a separate,
-  later change once the silence threshold criteria are defined.
+- ✅ RESUELTO **silence_detected — implementado (ya no está diferido).**
+  Esta sección quedó desactualizada: el evento `conversation.silence_detected` está
+  implementado de extremo a extremo. El backend lo deriva de los huecos de timing
+  del `end-of-call-report` (`backend/src/adapters/rest/vapi_mapping.py` /
+  `tasks.py`), persistiendo un único evento por sesión con
+  `payload.intervals[]` (uno por hueco de silencio detectado, sin umbral mínimo
+  de duración). El frontend consume `GET /sessions/{id}/events`, arma la
+  transcripción con `buildTranscript` (`frontend/src/lib/transcript/buildTranscript.ts`)
+  y renderiza un divisor de silencio por intervalo en `TranscriptView`
+  (`frontend/src/components/TranscriptView.tsx`) con el formato
+  `── ⏸ {duración}s de silencio ──`. La decisión original de "diferir hasta
+  definir el umbral de negocio" quedó superada: la implementación actual no
+  aplica umbral — se muestra cualquier hueco de silencio detectado — dejando la
+  eventual afinación de umbral como una mejora futura, no como trabajo
+  pendiente bloqueante.
 
 - ✅ RESOLVED **Ordering / sequence at close — C1 (append-only).**
   With turns no longer persisted, the only real-time-sourced conversational event
