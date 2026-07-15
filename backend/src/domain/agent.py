@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from src.domain.enums import AgentStatus
@@ -18,6 +19,10 @@ class Agent:
     """
     status: AgentStatus = AgentStatus.ACTIVE
     agent_id: UUID = field(default_factory=uuid4)
+    deleted_at: datetime | None = None
+    """``None`` while active; set by ``soft_delete_agent`` (R2). A soft-deleted
+    agent is excluded from lookups and listings but its history is untouched.
+    """
 
     def __post_init__(self) -> None:
         if not self.name:

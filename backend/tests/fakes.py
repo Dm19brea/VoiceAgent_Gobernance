@@ -1,4 +1,6 @@
 from dataclasses import replace
+from datetime import datetime
+from uuid import UUID
 
 from src.application.ports.assistant_directory import AssistantDirectoryUnavailable
 from src.application.ports.conversation_judge import JudgeVerdict
@@ -21,7 +23,10 @@ class InMemoryGovernanceRepository:
         self.locked_session_ids: list[str] = []
 
     async def get_agent_by_assistant_id(self, assistant_id: str) -> Agent | None:
-        return self.agents.get(assistant_id)
+        agent = self.agents.get(assistant_id)
+        if agent is None or agent.deleted_at is not None:
+            return None
+        return agent
 
     async def add_agent(self, agent: Agent) -> None:
         self.agents[agent.vapi_assistant_id] = agent
@@ -32,11 +37,22 @@ class InMemoryGovernanceRepository:
             description = (
                 agent.description if agent.description is not None else existing.description
             )
-            resolved = replace(agent, agent_id=existing.agent_id, description=description)
+            resolved = replace(
+                agent, agent_id=existing.agent_id, description=description, deleted_at=None
+            )
         else:
-            resolved = replace(agent, description=agent.description or "")
+            resolved = replace(agent, description=agent.description or "", deleted_at=None)
         self.agents[agent.vapi_assistant_id] = resolved
         return resolved
+
+    async def soft_delete_agent(self, agent_id: UUID, *, deleted_at: datetime) -> bool:
+        for assistant_id, agent in self.agents.items():
+            if agent.agent_id == agent_id:
+                if agent.deleted_at is not None:
+                    return False
+                self.agents[assistant_id] = replace(agent, deleted_at=deleted_at)
+                return True
+        return False
 
     async def get_session(self, session_id: str) -> Session | None:
         return self.sessions.get(session_id)

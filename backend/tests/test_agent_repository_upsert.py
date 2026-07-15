@@ -89,3 +89,34 @@ async def test_upsert_provided_description_overwrites_prior_value(db_session: As
     await db_session.commit()
 
     assert updated.description == "second"
+
+
+async def test_upsert_reactivates_soft_deleted_agent_without_duplicate(
+    db_session: AsyncSession,
+) -> None:
+    """R2b S9 — re-upserting a soft-deleted agent clears deleted_at, no duplicate row."""
+    from datetime import UTC, datetime
+
+    repo = SqlAlchemyGovernanceRepository(db_session)
+    created = await repo.upsert_agent(
+        Agent(name="Citas", objective="Confirmar", vapi_assistant_id="va-5", description="d")
+    )
+    await db_session.commit()
+    await repo.soft_delete_agent(
+        created.agent_id, deleted_at=datetime(2026, 2, 1, 12, 0, 0, tzinfo=UTC)
+    )
+    await db_session.commit()
+    assert await repo.get_agent_by_assistant_id("va-5") is None
+
+    reactivated = await repo.upsert_agent(
+        Agent(name="Citas", objective="Confirmar", vapi_assistant_id="va-5", description="d")
+    )
+    await db_session.commit()
+
+    assert reactivated.agent_id == created.agent_id
+    assert reactivated.deleted_at is None
+    assert reactivated.status is AgentStatus.ACTIVE
+    row_count = await db_session.scalar(
+        select(func.count()).select_from(AgentModel).where(AgentModel.vapi_assistant_id == "va-5")
+    )
+    assert row_count == 1

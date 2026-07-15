@@ -177,3 +177,70 @@ async def test_register_calls_directory_with_submitted_assistant_id(client: Asyn
     )
 
     assert directory.calls == ["va-precise-id"]
+
+
+async def test_delete_existing_agent_removes_it_from_list(client: AsyncClient) -> None:
+    """R2 S5 — DELETE an existing agent succeeds and it disappears from GET /agents."""
+    created = await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-del-1", "name": "Citas", "objective": "Confirmar"},
+    )
+    agent_id = created.json()["agent_id"]
+
+    response = await client.delete(f"/agents/{agent_id}")
+
+    assert response.status_code == 204
+    listed = await client.get("/agents")
+    assert all(agent["agent_id"] != agent_id for agent in listed.json())
+
+
+async def test_delete_nonexistent_agent_returns_404(client: AsyncClient) -> None:
+    """R2 S6 — DELETE an agent_id that never existed returns 404."""
+    from uuid import uuid4
+
+    response = await client.delete(f"/agents/{uuid4()}")
+
+    assert response.status_code == 404
+
+
+async def test_delete_already_deleted_agent_returns_404(client: AsyncClient) -> None:
+    """R2 S6 — repeated DELETE is a not-found error, not idempotent-success."""
+    created = await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-del-2", "name": "Citas", "objective": "Confirmar"},
+    )
+    agent_id = created.json()["agent_id"]
+    first = await client.delete(f"/agents/{agent_id}")
+    assert first.status_code == 204
+
+    second = await client.delete(f"/agents/{agent_id}")
+
+    assert second.status_code == 404
+
+
+async def test_reregistering_soft_deleted_assistant_reactivates_single_row(
+    client: AsyncClient,
+) -> None:
+    """R2b S9 — re-registering a soft-deleted vapi_assistant_id reactivates it."""
+    created = await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-reactivate", "name": "Citas", "objective": "Confirmar"},
+    )
+    agent_id = created.json()["agent_id"]
+    delete_response = await client.delete(f"/agents/{agent_id}")
+    assert delete_response.status_code == 204
+
+    reregistered = await client.post(
+        "/agents",
+        json={"vapi_assistant_id": "va-reactivate", "name": "Citas 2", "objective": "Confirmar 2"},
+    )
+
+    assert reregistered.status_code == 200
+    body = reregistered.json()
+    assert body["agent_id"] == agent_id
+    assert body["status"] == "active"
+    assert body["name"] == "Citas 2"
+
+    listed = await client.get("/agents")
+    matches = [agent for agent in listed.json() if agent["agent_id"] == agent_id]
+    assert len(matches) == 1

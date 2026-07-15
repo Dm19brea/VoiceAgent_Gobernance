@@ -46,3 +46,10 @@ export function getAgents(): Promise<Agent[]> {
 export function registerAgent(input: RegisterAgentInput): Promise<Agent> {
   return postJson<RegisterAgentInput, Agent>("/agents", input);
 }
+
+export async function deleteAgent(agentId: string): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/agents/${agentId}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new ApiError(response.status, `Request to /agents/${agentId} failed (${response.status})`);
+  }
+}

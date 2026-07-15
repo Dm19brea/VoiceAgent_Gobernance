@@ -97,7 +97,9 @@ class SqlAlchemyGovernanceQuery:
     async def list_agents(self) -> list[Agent]:
         rows = (
             await self._session.scalars(
-                select(AgentModel).order_by(AgentModel.name, AgentModel.agent_id)
+                select(AgentModel)
+                .where(AgentModel.deleted_at.is_(None))
+                .order_by(AgentModel.name, AgentModel.agent_id)
             )
         ).all()
         return [_to_agent(row) for row in rows]

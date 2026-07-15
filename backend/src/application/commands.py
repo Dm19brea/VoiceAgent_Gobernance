@@ -71,6 +71,18 @@ class RegisterAgentCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class RemoveAgentCommand:
+    """Soft-delete an agent by its primary key.
+
+    ``deleted_at`` is injected by the route boundary (``datetime.now(UTC)``)
+    so the use case and repository stay pure/deterministic.
+    """
+
+    agent_id: UUID
+    deleted_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class ConversationSignalCommand:
     """A retry-safe post-terminal derived conversation signal.
 

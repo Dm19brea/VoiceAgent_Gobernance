@@ -5,7 +5,14 @@ const HEADERS = ["Name", "Objective", "Vapi assistant", "Status", ""];
 export function AgentsTable({
   agents,
   onEdit,
-}: Readonly<{ agents: Agent[]; onEdit: (agent: Agent) => void }>) {
+  onDelete,
+  deletingAgentId,
+}: Readonly<{
+  agents: Agent[];
+  onEdit: (agent: Agent) => void;
+  onDelete: (agent: Agent) => void;
+  deletingAgentId?: string | null;
+}>) {
   if (agents.length === 0) {
     return <p className="text-sm text-neutral-500">No agents yet.</p>;
   }
@@ -38,6 +45,14 @@ export function AgentsTable({
                 className="text-blue-600 hover:underline dark:text-blue-400"
               >
                 Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(agent)}
+                disabled={deletingAgentId === agent.agent_id}
+                className="ml-3 text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
+              >
+                Delete
               </button>
             </td>
           </tr>
