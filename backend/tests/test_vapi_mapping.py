@@ -49,11 +49,6 @@ def _webhook(message: dict[str, Any]) -> dict[str, Any]:
             Source.AGENT,
         ),
         ({"type": "user-interrupted"}, EventType.CONVERSATION_INTERRUPTION_DETECTED, Source.USER),
-        ({"type": "tool-calls"}, EventType.TOOL_CALLED, Source.TOOL),
-        ({"type": "transfer-destination-request"}, EventType.TOOL_CALLED, Source.TOOL),
-        ({"type": "knowledge-base-request"}, EventType.TOOL_CALLED, Source.TOOL),
-        ({"type": "phone-call-control"}, EventType.TOOL_CALLED, Source.TOOL),
-        ({"type": "voice-input"}, EventType.TOOL_CALLED, Source.TOOL),
         ({"type": "model-output"}, EventType.SYSTEM_MODEL_INVOCATION, Source.SYSTEM),
         ({"type": "transfer-update"}, EventType.SYSTEM_WARNING, Source.SYSTEM),
         ({"type": "language-change-detected"}, EventType.SYSTEM_WARNING, Source.SYSTEM),
@@ -72,6 +67,20 @@ def test_maps_documented_vapi_server_messages_to_canonical_events(
     assert result.assistant_id == "asst-1"
     assert result.event_type is event_type
     assert result.source is source
+
+
+@pytest.mark.parametrize(
+    "message_type",
+    [
+        "tool-calls",
+        "transfer-destination-request",
+        "knowledge-base-request",
+        "phone-call-control",
+        "voice-input",
+    ],
+)
+def test_tool_webhooks_remain_raw_only(message_type: str) -> None:
+    assert map_vapi_event(_webhook({"type": message_type})) is None
 
 
 def test_maps_end_of_call_report_with_normalized_report_payload() -> None:

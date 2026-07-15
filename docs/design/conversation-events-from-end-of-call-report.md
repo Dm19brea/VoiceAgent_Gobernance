@@ -11,7 +11,7 @@ landing). This document defines whether — and how — each `conversation.*` ev
 from [`vapi-event-coverage.md`](./vapi-event-coverage.md) can instead be derived
 from the **`end-of-call-report`** webhook at session close.
 
-Scope: **only the `conversation.*` events.** Session/tool/system events are out of
+Scope: **only the `conversation.*` events.** Session and system events are out of
 scope here.
 
 ## What the end-of-call-report actually contains

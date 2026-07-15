@@ -113,7 +113,7 @@ and a repository adapter maps domain ↔ rows. `Session` owns its invariants via
 Only the types reachable from real Vapi traffic:
 `session.started`, `session.ended`, `conversation.agent_response`, `conversation.user_input`.
 Vapi types with no mapping are **not** promoted to Events — they stay in `raw_events` (R4).
-Wider taxonomy (tool.*, system.*, turn/silence/interruption) is deferred to when a source emits it.
+Wider taxonomy (system.*, turn/silence/interruption) is deferred to when a source emits it.
 
 ### D3 — Vapi → canonical mapping (adapter-side)
 Lives in `adapters/rest/` (provider-specific; the domain never sees Vapi). Concrete table:

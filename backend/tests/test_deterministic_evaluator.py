@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from src.domain.enums import EvaluationResult, EventType, Source
+from src.domain.enums import Dimension, EvaluationResult, EventType, Source
 from src.domain.evaluation_report import EvaluationReport
 from src.domain.evidence_builder import build_evidences
 from src.domain.scoring.evaluator import DeterministicEvaluator
@@ -120,20 +120,21 @@ def test_report_carries_scores_result_and_metrics_snapshot() -> None:  # S6
     assert "clean_ending" not in codes
 
 
-def test_operational_dimension_is_excluded_when_only_weight_zero_metrics_exist() -> None:  # S8
-    # M-O04 (tool_usage_density) is the only OPERATIONAL metric and has weight 0.
+def test_operational_dimension_is_absent_without_operational_metrics() -> None:  # S8
     report = _evaluate(_closed_session(report={"ended_reason": "customer-ended-call"}))
 
     assert report.score_operational is None
-    assert any(m.code == "M-O04" for m in report.metrics)  # present in the snapshot regardless
+    assert all(m.dimension is not Dimension.OPERATIONAL for m in report.metrics)
 
 
-def test_informational_metrics_never_move_the_dimension_score() -> None:
-    with_tool_calls = _evaluate(_closed_session(report={"ended_reason": "customer-ended-call"}))
+def test_technical_informational_metrics_never_move_the_dimension_score() -> None:
+    with_model_invocations = _evaluate(
+        _closed_session(report={"ended_reason": "customer-ended-call"})
+    )
     without = _evaluate(_closed_session(report={"ended_reason": "customer-ended-call"}))
 
-    assert with_tool_calls.score_technical == without.score_technical
-    assert with_tool_calls.score_operational == without.score_operational is None
+    assert with_model_invocations.score_technical == without.score_technical
+    assert with_model_invocations.score_operational == without.score_operational is None
 
 
 def test_high_technical_error_rate_lowers_technical_and_global_score() -> None:

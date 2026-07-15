@@ -30,7 +30,7 @@ def test_to_percent_rescales_a_ratio_to_a_percentage() -> None:
 
 
 def test_metric_specs_table_is_not_empty() -> None:
-    assert len(METRIC_SPECS) >= 11
+    assert len(METRIC_SPECS) >= 10
 
 
 def test_metric_specs_codes_are_unique() -> None:

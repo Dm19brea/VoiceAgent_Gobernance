@@ -19,12 +19,6 @@ class EventType(StrEnum):
     CONVERSATION_GOAL_ACHIEVED = "conversation.goal_achieved"
     CONVERSATION_GOAL_FAILED = "conversation.goal_failed"
 
-    TOOL_CALLED = "tool.called"
-    TOOL_RESPONSE_RECEIVED = "tool.response_received"
-    TOOL_FAILED = "tool.failed"
-    TOOL_TIMEOUT = "tool.timeout"
-    TOOL_RETRY = "tool.retry"
-
     SYSTEM_LATENCY_MEASURED = "system.latency_measured"
     SYSTEM_MODEL_INVOCATION = "system.model_invocation"
     SYSTEM_ERROR = "system.error"
@@ -37,7 +31,6 @@ class Source(StrEnum):
     USER = "user"
     PLATFORM = "platform"
     SYSTEM = "system"
-    TOOL = "tool"
 
 
 class SessionStatus(StrEnum):

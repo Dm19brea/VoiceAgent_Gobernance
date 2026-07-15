@@ -19,11 +19,6 @@ This document tracks how each canonical `EventType` from `backend/src/domain/enu
 | `conversation.topic_change` | No | Yes | None | Pending. Requires conversation analysis/business logic. |
 | `conversation.goal_achieved` | No | Yes | None | Pending. Requires outcome/evaluation logic. |
 | `conversation.goal_failed` | No | Yes | None | Pending. Requires outcome/evaluation logic. |
-| `tool.called` | Yes | No | `tool-calls`; `transfer-destination-request`; `knowledge-base-request`; `phone-call-control`; `voice-input`; `voice-request`; `call.endpointing.request` | Implemented as provider interaction tracking. Next: decide whether custom voice/endpointing should stay under `tool.called` or get finer-grained events. |
-| `tool.response_received` | No | Yes | None | Pending. Requires registering tool execution responses. |
-| `tool.failed` | No | Yes | None | Pending. Requires tool execution error handling. |
-| `tool.timeout` | No | Yes | None | Pending. Requires timeout instrumentation. |
-| `tool.retry` | No | Yes | None | Pending. Requires retry instrumentation. |
 | `system.latency_measured` | No | Yes | N/A — platform-recorded webhook and evaluation timestamps | Implemented. Webhook ingestion and `evidence_evaluation` record local platform durations only; neither claims provider-side latency. |
 | `system.model_invocation` | Yes | No | `model-output` | Implemented. |
 | `system.error` | Yes | Yes | `end-of-call-report` for classified terminal failures | Implemented. A classified terminal `endedReason` creates one correlated error alongside, never instead of, `session.failed`; recoverable `evidence_evaluation` failures create one idempotent platform error without lifecycle mutation. |
@@ -42,4 +37,4 @@ This document tracks how each canonical `EventType` from `backend/src/domain/enu
 
 ## Next step
 
-The remaining pending taxonomy entries are conversation and tool capabilities. System coverage is complete: raw Vapi landing remains the source of truth, while platform-derived observations retain explicit provenance and retry-safe identities.
+The remaining pending taxonomy entries are conversational capabilities. System coverage is complete: raw Vapi landing remains the source of truth, while platform-derived observations retain explicit provenance and retry-safe identities.

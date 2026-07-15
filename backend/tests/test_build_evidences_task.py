@@ -69,7 +69,7 @@ async def test_rebuilding_evidences_does_not_duplicate(db_session: AsyncSession)
     assert len(evidences) == first
 
 
-async def test_task_persists_density_rates_idempotently(db_session: AsyncSession) -> None:
+async def test_task_persists_system_warning_rate_idempotently(db_session: AsyncSession) -> None:
     repo = SqlAlchemyGovernanceRepository(db_session)
     agent = Agent(name="Citas", objective="Confirmar", vapi_assistant_id="asst-density-rates")
     await repo.add_agent(agent)
@@ -77,15 +77,10 @@ async def test_task_persists_density_rates_idempotently(db_session: AsyncSession
     session = Session.open("call-density-rates", agent.agent_id, START)
     session.record(EventType.CONVERSATION_AGENT_RESPONSE, Source.AGENT, START, {})
     session.record(EventType.CONVERSATION_USER_INPUT, Source.USER, START, {})
-    session.record(EventType.TOOL_CALLED, Source.AGENT, START, {})
-    session.record(EventType.TOOL_CALLED, Source.AGENT, START, {})
     session.record(EventType.SYSTEM_WARNING, Source.SYSTEM, START, {})
     session.record(
         EventType.SESSION_ENDED, Source.PLATFORM, END, {"report": {"ended_reason": "ok"}}
     )
-    tool_event_ids = [
-        event.event_id for event in session.events if event.event_type is EventType.TOOL_CALLED
-    ]
     warning_event_ids = [
         event.event_id for event in session.events if event.event_type is EventType.SYSTEM_WARNING
     ]
@@ -96,24 +91,18 @@ async def test_task_persists_density_rates_idempotently(db_session: AsyncSession
     await build_session_evidences_async("call-density-rates")
 
     persisted = await repo.get_evidences_by_session("call-density-rates")
-    density_rates = {
-        criterion: [evidence for evidence in persisted if evidence.criterion == criterion]
-        for criterion in ("tool_usage_density", "system_warning_rate")
-    }
-    assert all(len(rows) == 1 for rows in density_rates.values())
+    warning_rows = [
+        evidence for evidence in persisted if evidence.criterion == "system_warning_rate"
+    ]
+    assert len(warning_rows) == 1
 
-    tool_usage_density = density_rates["tool_usage_density"][0]
-    assert tool_usage_density.dimension is Dimension.OPERATIONAL
-    assert tool_usage_density.value == pytest.approx(2.0)
-    assert tool_usage_density.source_events == tool_event_ids
-
-    system_warning_rate = density_rates["system_warning_rate"][0]
+    system_warning_rate = warning_rows[0]
     assert system_warning_rate.dimension is Dimension.RISK
     assert system_warning_rate.value == pytest.approx(0.5)
     assert system_warning_rate.source_events == warning_event_ids
 
 
-async def test_task_builds_nonzero_density_rates_from_terminal_report_content(
+async def test_task_builds_nonzero_system_warning_rate_from_terminal_report_content(
     db_session: AsyncSession,
 ) -> None:
     repo = SqlAlchemyGovernanceRepository(db_session)
@@ -121,7 +110,6 @@ async def test_task_builds_nonzero_density_rates_from_terminal_report_content(
     await repo.add_agent(agent)
 
     session = Session.open("call-terminal-density", agent.agent_id, START)
-    session.record(EventType.TOOL_CALLED, Source.AGENT, START, {})
     session.record(EventType.SYSTEM_WARNING, Source.SYSTEM, START, {})
     session.record(
         EventType.SESSION_ENDED,
@@ -143,10 +131,9 @@ async def test_task_builds_nonzero_density_rates_from_terminal_report_content(
     first_rates = {
         evidence.criterion: evidence.value
         for evidence in first
-        if evidence.criterion in {"tool_usage_density", "system_warning_rate"}
+        if evidence.criterion == "system_warning_rate"
     }
     assert first_rates == {
-        "tool_usage_density": pytest.approx(1.0),
         "system_warning_rate": pytest.approx(0.5),
     }
 
@@ -156,14 +143,12 @@ async def test_task_builds_nonzero_density_rates_from_terminal_report_content(
     repeated_rates = {
         evidence.criterion: evidence.value
         for evidence in repeated
-        if evidence.criterion in {"tool_usage_density", "system_warning_rate"}
+        if evidence.criterion == "system_warning_rate"
     }
     assert repeated_rates == first_rates
-    density_rows = [evidence for evidence in repeated if evidence.criterion == "tool_usage_density"]
     warning_rows = [
         evidence for evidence in repeated if evidence.criterion == "system_warning_rate"
     ]
-    assert len(density_rows) == 1
     assert len(warning_rows) == 1
 
 

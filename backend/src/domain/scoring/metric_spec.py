@@ -102,15 +102,6 @@ METRIC_SPECS: tuple[MetricSpec, ...] = (
         normalize=normalisation.informational,
     ),
     MetricSpec(
-        code="M-O04",
-        dimension=Dimension.OPERATIONAL,
-        criterion="tool_usage_density",
-        unit="ratio",
-        weight=0.0,
-        transform=to_percent,
-        normalize=normalisation.informational,
-    ),
-    MetricSpec(
         code="M-R01",
         dimension=Dimension.RISK,
         criterion="governance_flag_count",
