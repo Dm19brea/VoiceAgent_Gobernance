@@ -48,18 +48,19 @@ function attachInterruptions(turns: TranscriptTurn[], events: EventOut[]): Trans
   const nextTurns = [...turns];
   for (const interruption of interruptions) {
     const interruptionTime = Date.parse(interruption.timestamp);
-    let nearestIndex = 0;
-    let nearestDelta = Infinity;
+    // A barge-in cuts off the agent turn being spoken: the last agent turn whose
+    // timestamp is at or before the interruption. Turns are already ordered by
+    // timestamp, so the last matching index is the most recent agent utterance.
+    // If no agent turn precedes the interruption, no turn was being spoken.
+    let targetIndex = -1;
     nextTurns.forEach((turn, index) => {
-      const delta = Math.abs(Date.parse(turn.timestamp) - interruptionTime);
-      if (delta < nearestDelta) {
-        nearestDelta = delta;
-        nearestIndex = index;
+      if (turn.role === "assistant" && Date.parse(turn.timestamp) <= interruptionTime) {
+        targetIndex = index;
       }
     });
-    const target = nextTurns[nearestIndex];
+    const target = targetIndex >= 0 ? nextTurns[targetIndex] : undefined;
     if (target) {
-      nextTurns[nearestIndex] = { ...target, interrupted: true };
+      nextTurns[targetIndex] = { ...target, interrupted: true };
     }
   }
   return nextTurns;
