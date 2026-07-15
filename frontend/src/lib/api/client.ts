@@ -1,5 +1,5 @@
 import { apiBaseUrl } from "./config";
-import type { Agent, RegisterAgentInput, Report, SessionSummary } from "./types";
+import type { Agent, EventOut, RegisterAgentInput, Report, SessionSummary } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -41,6 +41,10 @@ export function getAgentSessions(agentId: string): Promise<SessionSummary[]> {
 
 export function getReport(sessionId: string): Promise<Report> {
   return getJson<Report>(`/sessions/${sessionId}/report`);
+}
+
+export function getSessionEvents(sessionId: string): Promise<EventOut[]> {
+  return getJson<EventOut[]>(`/sessions/${sessionId}/events`);
 }
 
 export function getAgents(): Promise<Agent[]> {

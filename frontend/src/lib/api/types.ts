@@ -56,3 +56,53 @@ export interface RegisterAgentInput {
   objective: string;
   description?: string;
 }
+
+export interface EventOut {
+  event_id: string;
+  session_id: string;
+  event_type: string;
+  source: string;
+  sequence_number: number;
+  timestamp: string;
+  payload: Record<string, unknown>;
+}
+
+export interface AgentResponsePayload {
+  content: string;
+  role: "assistant";
+  turn_index: number;
+}
+
+export interface UserInputPayload {
+  content: string;
+  role: "user";
+  turn_index: number;
+}
+
+export interface InterruptionDetectedPayload {
+  [key: string]: unknown;
+}
+
+export interface SilenceInterval {
+  assistant_turn_index: number;
+  user_turn_index: number;
+  started_at: string;
+  ended_at: string;
+  duration_ms: number;
+}
+
+export interface SilenceDetectedPayload {
+  count: number;
+  threshold_ms: number;
+  detector_version: string;
+  intervals: SilenceInterval[];
+}
+
+export interface TranscriptTurn {
+  turnIndex: number;
+  role: "assistant" | "user";
+  content: string;
+  timestamp: string;
+  interrupted: boolean;
+  silenceBeforeMs: number | null;
+}
