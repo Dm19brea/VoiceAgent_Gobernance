@@ -59,9 +59,12 @@ def test_ws_rejects_connection_without_token(monkeypatch: pytest.MonkeyPatch) ->
     client = TestClient(app)
     with (
         pytest.raises(WebSocketDisconnect) as exc_info,
-        client.websocket_connect("/ws/active-sessions"),
+        client.websocket_connect("/ws/active-sessions") as connection,
     ):
-        pass
+        # Unreachable: the server closes before accept, so entering the context
+        # raises WebSocketDisconnect. The receive keeps the block non-empty and
+        # documents the intent (a real client would try to read here).
+        connection.receive_text()
 
     assert exc_info.value.code == 1008
 
@@ -73,9 +76,12 @@ def test_ws_rejects_connection_with_invalid_token(monkeypatch: pytest.MonkeyPatc
     client = TestClient(app)
     with (
         pytest.raises(WebSocketDisconnect) as exc_info,
-        client.websocket_connect("/ws/active-sessions?token=not-a-real-token"),
+        client.websocket_connect("/ws/active-sessions?token=not-a-real-token") as connection,
     ):
-        pass
+        # Unreachable: an invalid token is rejected before accept, so entering
+        # the context raises WebSocketDisconnect. The receive keeps the block
+        # non-empty and documents the intent.
+        connection.receive_text()
 
     assert exc_info.value.code == 1008
 

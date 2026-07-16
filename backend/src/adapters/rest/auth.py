@@ -65,7 +65,11 @@ def _credentials_valid(username: str, password: str) -> bool:
         return False
 
 
-@router.post("/auth/login", response_model=TokenOut, summary="Dashboard login")
+@router.post(
+    "/auth/login",
+    summary="Dashboard login",
+    responses={401: {"description": "Invalid credentials"}},
+)
 def login(body: LoginIn) -> TokenOut:
     if not _credentials_valid(body.username, body.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
