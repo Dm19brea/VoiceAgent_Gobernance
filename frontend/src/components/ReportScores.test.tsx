@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import type { Report } from "@/lib/api/types";
@@ -35,6 +36,31 @@ describe("ReportScores", () => {
     render(<ReportScores report={report} />);
 
     expect(screen.queryByText(/operational/i)).not.toBeInTheDocument();
+  });
+
+  it("opens and closes the scoring explanation dialog from the info button", async () => {
+    const user = userEvent.setup();
+    render(<ReportScores report={report} />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /cómo se calcula/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText(/¿Cómo se calcula la puntuación\?/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /cerrar/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes the scoring explanation dialog with Escape", async () => {
+    const user = userEvent.setup();
+    render(<ReportScores report={report} />);
+
+    await user.click(screen.getByRole("button", { name: /cómo se calcula/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("lists blocking flags when present", () => {
