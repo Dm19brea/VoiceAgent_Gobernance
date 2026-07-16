@@ -1,6 +1,6 @@
 """Query endpoints: read side of the API (doc 4.4 §4.4.3, Grupo 3)."""
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -175,6 +175,27 @@ def _to_evidence_out(evidence: Evidence) -> EvidenceOut:
     )
 
 
+# Payload keys the dashboard actually renders (see buildTranscript.ts). Anything
+# else — raw Vapi provider fields such as recordingUrl/transcript/call/assistant —
+# must never leave the API even though it stays in Event.payload for governance
+# provenance (D1/D2, security-hardening-mvp).
+_EVENT_PAYLOAD_ALLOWLIST = frozenset(
+    {
+        "content",
+        "role",
+        "turn_index",
+        "count",
+        "threshold_ms",
+        "detector_version",
+        "intervals",
+    }
+)
+
+
+def _redact_event_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in payload.items() if key in _EVENT_PAYLOAD_ALLOWLIST}
+
+
 def _to_event_out(event: Event) -> EventOut:
     return EventOut(
         event_id=event.event_id,
@@ -183,5 +204,5 @@ def _to_event_out(event: Event) -> EventOut:
         source=event.source.value,
         sequence_number=event.sequence_number,
         timestamp=event.timestamp,
-        payload=event.payload,
+        payload=_redact_event_payload(event.payload),
     )
