@@ -1,8 +1,17 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _dotenv_file() -> str | None:
+    """Select the developer dotenv file unless the process disables it explicitly."""
+    if os.getenv("GOVERNANCE_DISABLE_DOTENV") == "1":
+        return None
+    return ".env"
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_dotenv_file(), extra="ignore")
 
     database_url: str = "postgresql+asyncpg://governance:governance@localhost:5432/governance"
     redis_url: str = "redis://localhost:6379/0"

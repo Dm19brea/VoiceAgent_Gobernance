@@ -1,3 +1,6 @@
+# ruff: noqa: E402
+
+import os
 from collections.abc import AsyncGenerator, Generator
 
 import pytest
@@ -10,6 +13,9 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+
+# This must run before application imports; tests never load developer secrets.
+os.environ["GOVERNANCE_DISABLE_DOTENV"] = "1"
 
 from src.adapters.rest.agent_routes import get_assistant_directory
 from src.domain.agent import Agent
