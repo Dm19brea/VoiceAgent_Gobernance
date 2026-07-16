@@ -12,9 +12,9 @@ describe("DimensionChart", () => {
     render(<DimensionChart scores={scores} />);
 
     const chart = screen.getByRole("img");
-    expect(chart).toHaveAccessibleName(/conversational 88/i);
-    expect(chart).toHaveAccessibleName(/technical 74/i);
-    expect(chart).toHaveAccessibleName(/risk 70/i);
+    expect(chart).toHaveAccessibleName(/conversational 88.00/i);
+    expect(chart).toHaveAccessibleName(/technical 74.00/i);
+    expect(chart).toHaveAccessibleName(/seguridad 70.00/i);
   });
 
   it("excludes dimensions that have no score", () => {

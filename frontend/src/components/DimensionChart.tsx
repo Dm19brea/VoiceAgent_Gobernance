@@ -9,7 +9,9 @@ import type { Scores } from "@/lib/api/types";
 const DIMENSIONS: ReadonlyArray<readonly [label: string, key: keyof Scores]> = [
   ["Conversational", "conversational"],
   ["Technical", "technical"],
-  ["Risk", "risk"],
+  // The engine key stays "risk"; the label reads as safety because the score
+  // is inverted-risk: 100 means no incidents were observed.
+  ["Seguridad", "risk"],
 ];
 
 export function DimensionChart({ scores }: Readonly<{ scores: Scores }>) {

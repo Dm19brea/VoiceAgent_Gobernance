@@ -1,12 +1,16 @@
 import type { Report, Scores } from "@/lib/api/types";
 import { formatScore } from "@/lib/format";
 
+import { ScoringHelpDialog } from "./ScoringHelpDialog";
+
 // Operational is intentionally omitted: the dimension is out of the MVP scope
 // (no operational metrics exist, so it never scores).
 const DIMENSIONS: ReadonlyArray<readonly [label: string, key: keyof Scores]> = [
   ["Conversational", "conversational"],
   ["Technical", "technical"],
-  ["Risk", "risk"],
+  // The engine key stays "risk"; the label reads as safety because the score
+  // is inverted-risk: 100 means no incidents were observed.
+  ["Seguridad", "risk"],
 ];
 
 export function ReportScores({ report }: Readonly<{ report: Report }>) {
@@ -25,6 +29,7 @@ export function ReportScores({ report }: Readonly<{ report: Report }>) {
         >
           {report.result}
         </span>
+        <ScoringHelpDialog />
       </div>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
