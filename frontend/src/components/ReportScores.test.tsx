@@ -52,6 +52,17 @@ describe("ReportScores", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("closes the scoring explanation dialog with Escape", async () => {
+    const user = userEvent.setup();
+    render(<ReportScores report={report} />);
+
+    await user.click(screen.getByRole("button", { name: /cómo se calcula/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("lists blocking flags when present", () => {
     render(
       <ReportScores

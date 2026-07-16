@@ -1,15 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Info button + modal explaining how the session score is computed.
  *
  * The copy is intentionally plain-language: the target reader is any operator
  * with no knowledge of the scoring engine. The math shown mirrors
  * backend/src/domain/scoring (metric catalogue, weighted means, PASS >= 75).
+ *
+ * Rendered as a native <dialog> controlled by React state (instead of
+ * showModal()) so the component stays testable under jsdom, which stubs the
+ * imperative dialog API. Escape closes via a document-level listener.
  */
 export function ScoringHelpDialog() {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   return (
     <>
@@ -24,16 +37,11 @@ export function ScoringHelpDialog() {
       </button>
 
       {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <dialog
+            open
             aria-labelledby="scoring-help-title"
-            onClick={(event) => event.stopPropagation()}
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-neutral-900"
+            className="static max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border-0 bg-white p-6 shadow-xl dark:bg-neutral-900 dark:text-neutral-100"
           >
             <div className="mb-4 flex items-start justify-between gap-4">
               <h2 id="scoring-help-title" className="text-lg font-semibold">
@@ -145,7 +153,7 @@ export function ScoringHelpDialog() {
                 sin arreglar.
               </p>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
     </>
