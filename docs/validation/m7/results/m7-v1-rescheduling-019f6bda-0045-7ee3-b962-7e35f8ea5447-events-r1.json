@@ -1,0 +1,1749 @@
+[
+    {
+        "event_id": "a700ebd4-5e6f-43e1-958a-5979c02d8c8e",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "session.started",
+        "source": "platform",
+        "sequence_number": 1,
+        "timestamp": "2026-07-16T16:54:41.017000Z",
+        "payload": {
+            "call": {
+                "id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+                "cost": 0,
+                "type": "webCall",
+                "orgId": "3658ebd9-1223-49a8-9361-8ea8a935acec",
+                "status": "queued",
+                "monitor": {
+                    "listenUrl": "wss://phone-call-websocket.aws-us-west-2-backend-production1.vapi.ai/019f6bda-0045-7ee3-b962-7e35f8ea5447/listen",
+                    "controlUrl": "https://phone-call-websocket.aws-us-west-2-backend-production1.vapi.ai/019f6bda-0045-7ee3-b962-7e35f8ea5447/control"
+                },
+                "createdAt": "2026-07-16T16:54:36.869Z",
+                "transport": {
+                    "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                    "provider": "daily",
+                    "conversationType": "voice",
+                    "assistantVideoEnabled": false,
+                    "videoRecordingEnabled": false,
+                    "roomDeleteOnUserLeaveEnabled": true
+                },
+                "updatedAt": "2026-07-16T16:54:36.869Z",
+                "webCallUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                "assistantOverrides": {
+                    "clientMessages": [
+                        "transcript",
+                        "hang",
+                        "metadata",
+                        "tool-calls",
+                        "tool-calls-result",
+                        "tool.completed",
+                        "transfer-update",
+                        "user-interrupted",
+                        "status-update",
+                        "assistant.started"
+                    ],
+                    "variableValues": {}
+                }
+            },
+            "type": "assistant.started",
+            "artifact": {
+                "messages": [
+                    {
+                        "role": "system",
+                        "time": 1784220877099,
+                        "message": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   ...",
+                        "secondsFromStart": 0
+                    }
+                ],
+                "variables": {
+                    "day": "16",
+                    "now": "Jul 16, 2026, 4:54 PM UTC",
+                    "call": {
+                        "id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+                        "type": "webCall",
+                        "status": "queued",
+                        "createdAt": "2026-07-16T16:54:36.869Z",
+                        "transport": {
+                            "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                            "provider": "daily",
+                            "conversationType": "voice",
+                            "assistantVideoEnabled": false,
+                            "videoRecordingEnabled": false,
+                            "roomDeleteOnUserLeaveEnabled": true
+                        }
+                    },
+                    "date": "Jul 16, 2026 UTC",
+                    "time": "4:54 PM UTC",
+                    "year": "2026",
+                    "month": "July",
+                    "transport": {
+                        "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                        "provider": "daily",
+                        "conversationType": "voice",
+                        "assistantVideoEnabled": false,
+                        "videoRecordingEnabled": false,
+                        "roomDeleteOnUserLeaveEnabled": true
+                    },
+                    "currentDateTime": "Thursday, July 16, 2026 at 4:54 PM UTC"
+                },
+                "variableValues": {
+                    "day": "16",
+                    "now": "Jul 16, 2026, 4:54 PM UTC",
+                    "call": {
+                        "id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+                        "type": "webCall",
+                        "status": "queued",
+                        "createdAt": "2026-07-16T16:54:36.869Z",
+                        "transport": {
+                            "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                            "provider": "daily",
+                            "conversationType": "voice",
+                            "assistantVideoEnabled": false,
+                            "videoRecordingEnabled": false,
+                            "roomDeleteOnUserLeaveEnabled": true
+                        }
+                    },
+                    "date": "Jul 16, 2026 UTC",
+                    "time": "4:54 PM UTC",
+                    "year": "2026",
+                    "month": "July",
+                    "transport": {
+                        "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                        "provider": "daily",
+                        "conversationType": "voice",
+                        "assistantVideoEnabled": false,
+                        "videoRecordingEnabled": false,
+                        "roomDeleteOnUserLeaveEnabled": true
+                    },
+                    "currentDateTime": "Thursday, July 16, 2026 at 4:54 PM UTC"
+                },
+                "messagesOpenAIFormatted": [
+                    {
+                        "role": "system",
+                        "content": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   ..."
+                    }
+                ]
+            },
+            "assistant": {
+                "id": "6664de95-172d-441f-9495-82e28cfddc71",
+                "name": "Voice Agent",
+                "model": {
+                    "model": "claude-haiku-4-5-20251001",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   - Reprogramar: pregunta qu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor, prop\u00f3n una alternativa concreta y confirma la nueva cita.\n   - Cancelar: confirma la cancelaci\u00f3n y ofrece la posibilidad de reagendar m\u00e1s adelante.\n5) Cierre: resume la acci\u00f3n tomada (confirmada / nueva fecha / cancelada) y desp\u00eddete amablemente.\n\nManejo de situaciones:\n- Si no es la persona correcta: disc\u00falpate brevemente y finaliza.\n- Si dicen que no les interesa o piden no ser llamados: resp\u00e9talo, disc\u00falpate y cierra con cortes\u00eda.\n- Si piden informaci\u00f3n: responde de forma concisa y vuelve al objetivo de gestionar la cita.\n\nEstilo:\n- Espa\u00f1ol natural, tono profesional y amable.\n- Respuestas cortas (1\u20132 frases), sin mon\u00f3logos.\n- Nunca inventes datos de la cita, del centro ni del cliente. Si falta informaci\u00f3n, preg\u00fantala.\n- No menciones pol\u00edticas internas ni que eres un modelo de IA."
+                        }
+                    ],
+                    "provider": "anthropic",
+                    "maxTokens": 250
+                },
+                "orgId": "3658ebd9-1223-49a8-9361-8ea8a935acec",
+                "voice": {
+                    "version": "2",
+                    "voiceId": "Elliot",
+                    "language": "es",
+                    "provider": "vapi"
+                },
+                "server": {
+                    "url": "[redacted]",
+                    "timeoutSeconds": 20
+                },
+                "createdAt": "2026-07-02T15:25:37.501Z",
+                "updatedAt": "2026-07-16T16:43:43.655Z",
+                "transcriber": {
+                    "model": "nova-3",
+                    "language": "es",
+                    "provider": "deepgram",
+                    "fallbackPlan": {
+                        "autoFallback": {
+                            "enabled": true
+                        }
+                    }
+                },
+                "artifactPlan": {
+                    "scorecardIds": [
+                        "89e117ee-cf75-4ae3-9fa2-ee92484a7c40"
+                    ]
+                },
+                "firstMessage": "Hola, buenos d\u00edas. Le llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?",
+                "clientMessages": [
+                    "transcript",
+                    "hang",
+                    "metadata",
+                    "tool-calls",
+                    "tool-calls-result",
+                    "tool.completed",
+                    "transfer-update",
+                    "user-interrupted",
+                    "status-update",
+                    "assistant.started"
+                ],
+                "compliancePlan": {
+                    "pciEnabled": false,
+                    "zdrEnabled": false,
+                    "hipaaEnabled": false
+                },
+                "stopSpeakingPlan": {
+                    "numWords": 0,
+                    "voiceSeconds": 0.2,
+                    "backoffSeconds": 1
+                },
+                "startSpeakingPlan": {
+                    "waitSeconds": 0.4,
+                    "transcriptionEndpointingPlan": {
+                        "onNumberSeconds": 0.5,
+                        "onPunctuationSeconds": 0.1,
+                        "onNoPunctuationSeconds": 1.5
+                    }
+                }
+            },
+            "timestamp": 1784220881017,
+            "newAssistant": {
+                "id": "6664de95-172d-441f-9495-82e28cfddc71",
+                "name": "Voice Agent",
+                "model": {
+                    "model": "claude-haiku-4-5-20251001",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   - Reprogramar: pregunta qu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor, prop\u00f3n una alternativa concreta y confirma la nueva cita.\n   - Cancelar: confirma la cancelaci\u00f3n y ofrece la posibilidad de reagendar m\u00e1s adelante.\n5) Cierre: resume la acci\u00f3n tomada (confirmada / nueva fecha / cancelada) y desp\u00eddete amablemente.\n\nManejo de situaciones:\n- Si no es la persona correcta: disc\u00falpate brevemente y finaliza.\n- Si dicen que no les interesa o piden no ser llamados: resp\u00e9talo, disc\u00falpate y cierra con cortes\u00eda.\n- Si piden informaci\u00f3n: responde de forma concisa y vuelve al objetivo de gestionar la cita.\n\nEstilo:\n- Espa\u00f1ol natural, tono profesional y amable.\n- Respuestas cortas (1\u20132 frases), sin mon\u00f3logos.\n- Nunca inventes datos de la cita, del centro ni del cliente. Si falta informaci\u00f3n, preg\u00fantala.\n- No menciones pol\u00edticas internas ni que eres un modelo de IA."
+                        }
+                    ],
+                    "provider": "anthropic",
+                    "maxTokens": 250
+                },
+                "orgId": "3658ebd9-1223-49a8-9361-8ea8a935acec",
+                "voice": {
+                    "version": "2",
+                    "voiceId": "Elliot",
+                    "language": "es",
+                    "provider": "vapi"
+                },
+                "server": {
+                    "url": "[redacted]",
+                    "timeoutSeconds": 20
+                },
+                "createdAt": "2026-07-02T15:25:37.501Z",
+                "updatedAt": "2026-07-16T16:43:43.655Z",
+                "transcriber": {
+                    "model": "nova-3",
+                    "language": "es",
+                    "provider": "deepgram",
+                    "fallbackPlan": {
+                        "autoFallback": {
+                            "enabled": true
+                        }
+                    }
+                },
+                "artifactPlan": {
+                    "scorecardIds": [
+                        "89e117ee-cf75-4ae3-9fa2-ee92484a7c40"
+                    ]
+                },
+                "firstMessage": "Hola, buenos d\u00edas. Le llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?",
+                "clientMessages": [
+                    "transcript",
+                    "hang",
+                    "metadata",
+                    "tool-calls",
+                    "tool-calls-result",
+                    "tool.completed",
+                    "transfer-update",
+                    "user-interrupted",
+                    "status-update",
+                    "assistant.started"
+                ],
+                "compliancePlan": {
+                    "pciEnabled": false,
+                    "zdrEnabled": false,
+                    "hipaaEnabled": false
+                },
+                "stopSpeakingPlan": {
+                    "numWords": 0,
+                    "voiceSeconds": 0.2,
+                    "backoffSeconds": 1
+                },
+                "startSpeakingPlan": {
+                    "waitSeconds": 0.4,
+                    "transcriptionEndpointingPlan": {
+                        "onNumberSeconds": 0.5,
+                        "onPunctuationSeconds": 0.1,
+                        "onNoPunctuationSeconds": 1.5
+                    }
+                }
+            }
+        }
+    },
+    {
+        "event_id": "d9e554ff-9215-4d41-a670-d94bb0d96d35",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "session.ended",
+        "source": "platform",
+        "sequence_number": 2,
+        "timestamp": "2026-07-16T16:56:11.871000Z",
+        "payload": {
+            "call": {
+                "id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+                "cost": 0,
+                "type": "webCall",
+                "orgId": "3658ebd9-1223-49a8-9361-8ea8a935acec",
+                "status": "queued",
+                "monitor": {
+                    "listenUrl": "wss://phone-call-websocket.aws-us-west-2-backend-production1.vapi.ai/019f6bda-0045-7ee3-b962-7e35f8ea5447/listen",
+                    "controlUrl": "https://phone-call-websocket.aws-us-west-2-backend-production1.vapi.ai/019f6bda-0045-7ee3-b962-7e35f8ea5447/control"
+                },
+                "createdAt": "2026-07-16T16:54:36.869Z",
+                "transport": {
+                    "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                    "provider": "daily",
+                    "conversationType": "voice",
+                    "assistantVideoEnabled": false,
+                    "videoRecordingEnabled": false,
+                    "roomDeleteOnUserLeaveEnabled": true
+                },
+                "updatedAt": "2026-07-16T16:54:36.869Z",
+                "webCallUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                "assistantOverrides": {
+                    "clientMessages": [
+                        "transcript",
+                        "hang",
+                        "metadata",
+                        "tool-calls",
+                        "tool-calls-result",
+                        "tool.completed",
+                        "transfer-update",
+                        "user-interrupted",
+                        "status-update",
+                        "assistant.started"
+                    ],
+                    "variableValues": {}
+                }
+            },
+            "cost": 0.1144,
+            "type": "end-of-call-report",
+            "costs": [
+                {
+                    "cost": 0.01420167,
+                    "type": "transcriber",
+                    "minutes": 1.3870833333333332,
+                    "transcriber": {
+                        "model": "nova-3",
+                        "provider": "deepgram"
+                    }
+                },
+                {
+                    "cost": 0.006938,
+                    "type": "model",
+                    "model": {
+                        "model": "claude-haiku-4-5-20251001",
+                        "provider": "anthropic"
+                    },
+                    "promptTokens": 5763,
+                    "completionTokens": 235,
+                    "cachedPromptTokens": 0
+                },
+                {
+                    "cost": 0.01689,
+                    "type": "voice",
+                    "voice": {
+                        "model": "vapi-v2",
+                        "voiceId": "Elliot",
+                        "provider": "vapi"
+                    },
+                    "characters": 563
+                },
+                {
+                    "cost": 0.07033,
+                    "type": "vapi",
+                    "minutes": 1.4066,
+                    "subType": "normal"
+                },
+                {
+                    "cost": 0,
+                    "type": "knowledge-base",
+                    "model": {
+                        "model": "gemini-2.5-flash",
+                        "provider": "google"
+                    },
+                    "promptTokens": 0,
+                    "completionTokens": 0
+                },
+                {
+                    "cost": 0.0002257,
+                    "type": "analysis",
+                    "model": {
+                        "model": "gemini-2.5-flash",
+                        "provider": "google"
+                    },
+                    "analysisType": "summary",
+                    "promptTokens": 344,
+                    "completionTokens": 49
+                },
+                {
+                    "cost": 0.005838,
+                    "type": "analysis",
+                    "model": {
+                        "model": "claude-sonnet-4-5-20250929",
+                        "provider": "anthropic"
+                    },
+                    "analysisType": "successEvaluation",
+                    "promptTokens": 1766,
+                    "completionTokens": 36
+                }
+            ],
+            "report": {
+                "summary": "The user successfully rescheduled their appointment from Thursday, July 16th at 7 PM to Friday, July 17th at 7 PM. The AI confirmed the new appointment time and the call concluded with the user's satisfaction.",
+                "ended_reason": "customer-ended-call",
+                "duration_seconds": 84.397,
+                "turn_latencies_seconds": [
+                    1.32,
+                    2.434,
+                    1.332,
+                    1.102,
+                    12.359,
+                    1.959
+                ]
+            },
+            "endedAt": "2026-07-16T16:56:01.689Z",
+            "summary": "The user successfully rescheduled their appointment from Thursday, July 16th at 7 PM to Friday, July 17th at 7 PM. The AI confirmed the new appointment time and the call concluded with the user's satisfaction.",
+            "analysis": {
+                "summary": "The user successfully rescheduled their appointment from Thursday, July 16th at 7 PM to Friday, July 17th at 7 PM. The AI confirmed the new appointment time and the call concluded with the user's satisfaction.",
+                "successEvaluation": "true"
+            },
+            "artifact": {
+                "nodes": [],
+                "logUrl": "[redacted]",
+                "messages": [
+                    {
+                        "role": "system",
+                        "time": 1784220877099,
+                        "message": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   - Reprogramar: pregunta qu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor, prop\u00f3n una alternativa concreta y confirma la nueva cita.\n   - Cancelar: confirma la cancelaci\u00f3n y ofrece la posibilidad de reagendar m\u00e1s adelante.\n5) Cierre: resume la acci\u00f3n tomada (confirmada / nueva fecha / cancelada) y desp\u00eddete amablemente.\n\nManejo de situaciones:\n- Si no es la persona correcta: disc\u00falpate brevemente y finaliza.\n- Si dicen que no les interesa o piden no ser llamados: resp\u00e9talo, disc\u00falpate y cierra con cortes\u00eda.\n- Si piden informaci\u00f3n: responde de forma concisa y vuelve al objetivo de gestionar la cita.\n\nEstilo:\n- Espa\u00f1ol natural, tono profesional y amable.\n- Respuestas cortas (1\u20132 frases), sin mon\u00f3logos.\n- Nunca inventes datos de la cita, del centro ni del cliente. Si falta informaci\u00f3n, preg\u00fantala.\n- No menciones pol\u00edticas internas ni que eres un modelo de IA.",
+                        "secondsFromStart": 0
+                    },
+                    {
+                        "role": "bot",
+                        "time": 1784220878892,
+                        "source": "",
+                        "endTime": 1784220884662,
+                        "message": "Hola, buenos d\u00edas. Llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?",
+                        "duration": 4560,
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent",
+                        "secondsFromStart": 1.6
+                    },
+                    {
+                        "role": "user",
+                        "time": 1784220886512,
+                        "endTime": 1784220889232.001,
+                        "message": "S\u00ed, claro, est\u00e1 hablando con la persona correspondiente.",
+                        "duration": 2720.0009765625,
+                        "metadata": {
+                            "wordLevelConfidence": [
+                                {
+                                    "end": 9.54,
+                                    "word": "s\u00ed",
+                                    "start": 9.22,
+                                    "confidence": 0.7963867,
+                                    "punctuated_word": "S\u00ed,"
+                                },
+                                {
+                                    "end": 9.780001,
+                                    "word": "claro",
+                                    "start": 9.54,
+                                    "confidence": 0.99609375,
+                                    "punctuated_word": "claro,"
+                                },
+                                {
+                                    "end": 10.02,
+                                    "word": "est\u00e1",
+                                    "start": 9.780001,
+                                    "confidence": 0.9873047,
+                                    "punctuated_word": "est\u00e1"
+                                },
+                                {
+                                    "end": 10.26,
+                                    "word": "hablando",
+                                    "start": 10.02,
+                                    "confidence": 1,
+                                    "punctuated_word": "hablando"
+                                },
+                                {
+                                    "end": 10.58,
+                                    "word": "con",
+                                    "start": 10.26,
+                                    "confidence": 1,
+                                    "punctuated_word": "con"
+                                },
+                                {
+                                    "end": 10.740001,
+                                    "word": "la",
+                                    "start": 10.58,
+                                    "confidence": 1,
+                                    "punctuated_word": "la"
+                                },
+                                {
+                                    "end": 11.22,
+                                    "word": "persona",
+                                    "start": 10.740001,
+                                    "confidence": 1,
+                                    "punctuated_word": "persona"
+                                },
+                                {
+                                    "end": 11.940001,
+                                    "word": "correspondiente",
+                                    "start": 11.22,
+                                    "confidence": 0.97143555,
+                                    "punctuated_word": "correspondiente."
+                                }
+                            ]
+                        },
+                        "secondsFromStart": 9.22
+                    },
+                    {
+                        "role": "bot",
+                        "time": 1784220891012,
+                        "source": "",
+                        "endTime": 1784220895342,
+                        "message": "Perfecto, gracias. Es, este, buen momento para hablar unos minutos sobre su cita.",
+                        "duration": 4080,
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent",
+                        "secondsFromStart": 13.72
+                    },
+                    {
+                        "role": "user",
+                        "time": 1784220896802,
+                        "endTime": 1784220900272,
+                        "message": "Y me gustar\u00eda reprogramar la cita que tengo actualmente.",
+                        "duration": 2960,
+                        "metadata": {
+                            "wordLevelConfidence": [
+                                {
+                                    "end": 19.83,
+                                    "word": "y",
+                                    "start": 19.51,
+                                    "confidence": 0.6508789,
+                                    "punctuated_word": "Y"
+                                },
+                                {
+                                    "end": 20.07,
+                                    "word": "me",
+                                    "start": 19.83,
+                                    "confidence": 0.9970703,
+                                    "punctuated_word": "me"
+                                },
+                                {
+                                    "end": 20.55,
+                                    "word": "gustar\u00eda",
+                                    "start": 20.07,
+                                    "confidence": 1,
+                                    "punctuated_word": "gustar\u00eda"
+                                }
+                            ]
+                        },
+                        "secondsFromStart": 19.51
+                    },
+                    {
+                        "role": "bot",
+                        "time": 1784220902162,
+                        "source": "",
+                        "endTime": 1784220908081.999,
+                        "message": "Claro, entendido. \u00bfMe podr\u00eda decir qu\u00e9 d\u00eda y hora tiene tiene programada la cita? Actualmente?",
+                        "duration": 5199.9990234375,
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent",
+                        "secondsFromStart": 24.87
+                    },
+                    {
+                        "role": "user",
+                        "time": 1784220909882,
+                        "endTime": 1784220914672,
+                        "message": "La tengo para el jueves, 16 de de julio, a las 7 de la tarde.",
+                        "duration": 4559.998046875,
+                        "metadata": {
+                            "wordLevelConfidence": [
+                                {
+                                    "end": 32.91,
+                                    "word": "la",
+                                    "start": 32.59,
+                                    "confidence": 0.52001953,
+                                    "punctuated_word": "La"
+                                },
+                                {
+                                    "end": 33.23,
+                                    "word": "tengo",
+                                    "start": 32.91,
+                                    "confidence": 0.99609375,
+                                    "punctuated_word": "tengo"
+                                },
+                                {
+                                    "end": 33.629997,
+                                    "word": "para",
+                                    "start": 33.23,
+                                    "confidence": 0.99902344,
+                                    "punctuated_word": "para"
+                                },
+                                {
+                                    "end": 33.87,
+                                    "word": "el",
+                                    "start": 33.629997,
+                                    "confidence": 0.99902344,
+                                    "punctuated_word": "el"
+                                },
+                                {
+                                    "end": 34.269997,
+                                    "word": "jueves",
+                                    "start": 33.87,
+                                    "confidence": 0.7644043,
+                                    "punctuated_word": "jueves,"
+                                },
+                                {
+                                    "end": 34.67,
+                                    "word": "16",
+                                    "start": 34.269997,
+                                    "confidence": 0.99902344,
+                                    "punctuated_word": "16"
+                                },
+                                {
+                                    "end": 34.829998,
+                                    "word": "de",
+                                    "start": 34.67,
+                                    "confidence": 0.3852539,
+                                    "punctuated_word": "de"
+                                }
+                            ]
+                        },
+                        "secondsFromStart": 32.59
+                    },
+                    {
+                        "role": "bot",
+                        "time": 1784220916292,
+                        "source": "",
+                        "endTime": 1784220923772,
+                        "message": "Perfecto. Tengo anotado jueves, 16 de julio, a las 19. \u00bfQu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor para reprogramarla?",
+                        "duration": 7040,
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent",
+                        "secondsFromStart": 39
+                    },
+                    {
+                        "role": "user",
+                        "time": 1784220925212.002,
+                        "endTime": 1784220928682,
+                        "message": "Me gustar\u00eda que fuese el 17 de julio a la misma hora.",
+                        "duration": 3199.99609375,
+                        "metadata": {
+                            "wordLevelConfidence": [
+                                {
+                                    "end": 48.16,
+                                    "word": "me",
+                                    "start": 47.920002,
+                                    "confidence": 0.99316406,
+                                    "punctuated_word": "Me"
+                                },
+                                {
+                                    "end": 48.56,
+                                    "word": "gustar\u00eda",
+                                    "start": 48.16,
+                                    "confidence": 1,
+                                    "punctuated_word": "gustar\u00eda"
+                                },
+                                {
+                                    "end": 48.800003,
+                                    "word": "que",
+                                    "start": 48.56,
+                                    "confidence": 1,
+                                    "punctuated_word": "que"
+                                },
+                                {
+                                    "end": 49.120003,
+                                    "word": "fuese",
+                                    "start": 48.800003,
+                                    "confidence": 1,
+                                    "punctuated_word": "fuese"
+                                },
+                                {
+                                    "end": 49.36,
+                                    "word": "el",
+                                    "start": 49.120003,
+                                    "confidence": 1,
+                                    "punctuated_word": "el"
+                                },
+                                {
+                                    "end": 49.760002,
+                                    "word": "17",
+                                    "start": 49.36,
+                                    "confidence": 1,
+                                    "punctuated_word": "17"
+                                },
+                                {
+                                    "end": 49.920002,
+                                    "word": "de",
+                                    "start": 49.760002,
+                                    "confidence": 1,
+                                    "punctuated_word": "de"
+                                },
+                                {
+                                    "end": 50.24,
+                                    "word": "julio",
+                                    "start": 49.920002,
+                                    "confidence": 1,
+                                    "punctuated_word": "julio"
+                                }
+                            ]
+                        },
+                        "secondsFromStart": 47.920001953125
+                    },
+                    {
+                        "role": "bot",
+                        "time": 1784220930062,
+                        "source": "",
+                        "endTime": 1784220936421.997,
+                        "message": "Excelente. Entonces, \u00bfle reprogramo la cita para viernes? 17 de julio, a las 19 horas. \u00bfLe viene bien?",
+                        "duration": 5679.9990234375,
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent",
+                        "secondsFromStart": 52.77
+                    },
+                    {
+                        "role": "user",
+                        "time": 1784220937802.002,
+                        "endTime": 1784220938202,
+                        "message": "Claro,",
+                        "duration": 399.998046875,
+                        "metadata": {
+                            "wordLevelConfidence": [
+                                {
+                                    "end": 60.91,
+                                    "word": "claro",
+                                    "start": 60.510002,
+                                    "confidence": 0.7741699,
+                                    "punctuated_word": "Claro,"
+                                }
+                            ]
+                        },
+                        "secondsFromStart": 60.510001953125
+                    },
+                    {
+                        "role": "bot",
+                        "time": 1784220941242,
+                        "source": "",
+                        "endTime": 1784220949402,
+                        "message": "Perfecto. Su cita est\u00e1 reprogramada para viernes, 17 de julio, a las 19 horas. \u00bfHay algo m\u00e1s que necesite?",
+                        "duration": 6640.0048828125,
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent",
+                        "secondsFromStart": 63.95
+                    },
+                    {
+                        "role": "user",
+                        "time": 1784220950852,
+                        "endTime": 1784220953492,
+                        "message": "No, est\u00e1 todo perfecto, muchas gracias.",
+                        "duration": 2640,
+                        "metadata": {
+                            "wordLevelConfidence": [
+                                {
+                                    "end": 73.88,
+                                    "word": "no",
+                                    "start": 73.56,
+                                    "confidence": 0.9916992,
+                                    "punctuated_word": "No,"
+                                },
+                                {
+                                    "end": 74.2,
+                                    "word": "est\u00e1",
+                                    "start": 73.88,
+                                    "confidence": 0.9970703,
+                                    "punctuated_word": "est\u00e1"
+                                },
+                                {
+                                    "end": 74.84,
+                                    "word": "todo",
+                                    "start": 74.2,
+                                    "confidence": 0.99902344,
+                                    "punctuated_word": "todo"
+                                },
+                                {
+                                    "end": 75.64,
+                                    "word": "perfecto",
+                                    "start": 74.92,
+                                    "confidence": 0.765625,
+                                    "punctuated_word": "perfecto,"
+                                },
+                                {
+                                    "end": 75.96,
+                                    "word": "muchas",
+                                    "start": 75.64,
+                                    "confidence": 0.99902344,
+                                    "punctuated_word": "muchas"
+                                },
+                                {
+                                    "end": 76.2,
+                                    "word": "gracias",
+                                    "start": 75.96,
+                                    "confidence": 1,
+                                    "punctuated_word": "gracias."
+                                }
+                            ]
+                        },
+                        "secondsFromStart": 73.56
+                    },
+                    {
+                        "role": "bot",
+                        "time": 1784220954451.996,
+                        "source": "",
+                        "endTime": 1784220959012,
+                        "message": "De nada. Gracias a usted. Tenga un excelente d\u00eda. Hasta luego.",
+                        "duration": 3360.00390625,
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent",
+                        "secondsFromStart": 77.15999609375
+                    }
+                ],
+                "recording": {
+                    "mono": {
+                        "combinedUrl": "[redacted]",
+                        "customerUrl": "[redacted]",
+                        "assistantUrl": "[redacted]"
+                    },
+                    "stereoUrl": "[redacted]"
+                },
+                "transfers": [],
+                "variables": {
+                    "day": "16",
+                    "now": "Jul 16, 2026, 4:54 PM UTC",
+                    "call": {
+                        "id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+                        "type": "webCall",
+                        "status": "queued",
+                        "createdAt": "2026-07-16T16:54:36.869Z",
+                        "transport": {
+                            "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                            "provider": "daily",
+                            "conversationType": "voice",
+                            "assistantVideoEnabled": false,
+                            "videoRecordingEnabled": false,
+                            "roomDeleteOnUserLeaveEnabled": true
+                        }
+                    },
+                    "date": "Jul 16, 2026 UTC",
+                    "time": "4:54 PM UTC",
+                    "year": "2026",
+                    "month": "July",
+                    "transport": {
+                        "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                        "provider": "daily",
+                        "conversationType": "voice",
+                        "assistantVideoEnabled": false,
+                        "videoRecordingEnabled": false,
+                        "roomDeleteOnUserLeaveEnabled": true
+                    },
+                    "currentDateTime": "Thursday, July 16, 2026 at 4:54 PM UTC"
+                },
+                "scorecards": {
+                    "89e117ee-cf75-4ae3-9fa2-ee92484a7c40": {
+                        "name": "scorecard for assistant Voice Agent",
+                        "score": 0,
+                        "metricPoints": {},
+                        "scoreNormalized": 0
+                    }
+                },
+                "transcript": "AI: Hola, buenos d\u00edas. Llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?\nUser: S\u00ed, claro, est\u00e1 hablando con la persona correspondiente.\nAI: Perfecto, gracias. Es, este, buen momento para hablar unos minutos sobre su cita.\nUser: Y me gustar\u00eda reprogramar la cita que tengo actualmente.\nAI: Claro, entendido. \u00bfMe podr\u00eda decir qu\u00e9 d\u00eda y hora tiene tiene programada la cita? Actualmente?\nUser: La tengo para el jueves, 16 de de julio, a las 7 de la tarde.\nAI: Perfecto. Tengo anotado jueves, 16 de julio, a las 19. \u00bfQu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor para reprogramarla?\nUser: Me gustar\u00eda que fuese el 17 de julio a la misma hora.\nAI: Excelente. Entonces, \u00bfle reprogramo la cita para viernes? 17 de julio, a las 19 horas. \u00bfLe viene bien?\nUser: Claro,\nAI: Perfecto. Su cita est\u00e1 reprogramada para viernes, 17 de julio, a las 19 horas. \u00bfHay algo m\u00e1s que necesite?\nUser: No, est\u00e1 todo perfecto, muchas gracias.\nAI: De nada. Gracias a usted. Tenga un excelente d\u00eda. Hasta luego.\n",
+                "recordingUrl": "[redacted]",
+                "variableValues": {
+                    "day": "16",
+                    "now": "Jul 16, 2026, 4:54 PM UTC",
+                    "call": {
+                        "id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+                        "type": "webCall",
+                        "status": "queued",
+                        "createdAt": "2026-07-16T16:54:36.869Z",
+                        "transport": {
+                            "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                            "provider": "daily",
+                            "conversationType": "voice",
+                            "assistantVideoEnabled": false,
+                            "videoRecordingEnabled": false,
+                            "roomDeleteOnUserLeaveEnabled": true
+                        }
+                    },
+                    "date": "Jul 16, 2026 UTC",
+                    "time": "4:54 PM UTC",
+                    "year": "2026",
+                    "month": "July",
+                    "transport": {
+                        "callUrl": "https://vapi.daily.co/KPbRBqQOOK2PTLUR53Lq",
+                        "provider": "daily",
+                        "conversationType": "voice",
+                        "assistantVideoEnabled": false,
+                        "videoRecordingEnabled": false,
+                        "roomDeleteOnUserLeaveEnabled": true
+                    },
+                    "currentDateTime": "Thursday, July 16, 2026 at 4:54 PM UTC"
+                },
+                "performanceMetrics": {
+                    "turnLatencies": [
+                        {
+                            "turnLatency": 1320,
+                            "modelLatency": 560,
+                            "voiceLatency": 439,
+                            "endpointingLatency": 310,
+                            "transcriberLatency": 0
+                        },
+                        {
+                            "turnLatency": 2434,
+                            "modelLatency": 859,
+                            "voiceLatency": 376,
+                            "endpointingLatency": 101,
+                            "transcriberLatency": 1096
+                        },
+                        {
+                            "turnLatency": 1332,
+                            "modelLatency": 531,
+                            "voiceLatency": 346,
+                            "endpointingLatency": 100,
+                            "transcriberLatency": 318
+                        },
+                        {
+                            "turnLatency": 1102,
+                            "modelLatency": 529,
+                            "voiceLatency": 265,
+                            "endpointingLatency": 101,
+                            "transcriberLatency": 168
+                        },
+                        {
+                            "turnLatency": 12359,
+                            "modelLatency": 645,
+                            "voiceLatency": 395,
+                            "endpointingLatency": 1501,
+                            "transcriberLatency": 9797
+                        },
+                        {
+                            "turnLatency": 1959,
+                            "modelLatency": 429,
+                            "voiceLatency": 302,
+                            "endpointingLatency": 102,
+                            "transcriberLatency": 1105
+                        }
+                    ],
+                    "turnLatencyAverage": 3417.67,
+                    "modelLatencyAverage": 592.17,
+                    "voiceLatencyAverage": 353.83,
+                    "endpointingLatencyAverage": 369.17,
+                    "toTransportLatencyAverage": 50,
+                    "transcriberLatencyAverage": 2080.67,
+                    "fromTransportLatencyAverage": 20
+                },
+                "stereoRecordingUrl": "[redacted]",
+                "assistantActivations": [
+                    {
+                        "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                        "assistantName": "Voice Agent"
+                    }
+                ],
+                "messagesOpenAIFormatted": [
+                    {
+                        "role": "system",
+                        "content": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   - Reprogramar: pregunta qu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor, prop\u00f3n una alternativa concreta y confirma la nueva cita.\n   - Cancelar: confirma la cancelaci\u00f3n y ofrece la posibilidad de reagendar m\u00e1s adelante.\n5) Cierre: resume la acci\u00f3n tomada (confirmada / nueva fecha / cancelada) y desp\u00eddete amablemente.\n\nManejo de situaciones:\n- Si no es la persona correcta: disc\u00falpate brevemente y finaliza.\n- Si dicen que no les interesa o piden no ser llamados: resp\u00e9talo, disc\u00falpate y cierra con cortes\u00eda.\n- Si piden informaci\u00f3n: responde de forma concisa y vuelve al objetivo de gestionar la cita.\n\nEstilo:\n- Espa\u00f1ol natural, tono profesional y amable.\n- Respuestas cortas (1\u20132 frases), sin mon\u00f3logos.\n- Nunca inventes datos de la cita, del centro ni del cliente. Si falta informaci\u00f3n, preg\u00fantala.\n- No menciones pol\u00edticas internas ni que eres un modelo de IA."
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Hola, buenos d\u00edas. Llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?"
+                    },
+                    {
+                        "role": "user",
+                        "content": "S\u00ed, claro, est\u00e1 hablando con la persona correspondiente."
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Perfecto, gracias. Es, este, buen momento para hablar unos minutos sobre su cita."
+                    },
+                    {
+                        "role": "user",
+                        "content": "Y me gustar\u00eda reprogramar la cita que tengo actualmente."
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Claro, entendido. \u00bfMe podr\u00eda decir qu\u00e9 d\u00eda y hora tiene tiene programada la cita? Actualmente?"
+                    },
+                    {
+                        "role": "user",
+                        "content": "La tengo para el jueves, 16 de de julio, a las 7 de la tarde."
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Perfecto. Tengo anotado jueves, 16 de julio, a las 19. \u00bfQu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor para reprogramarla?"
+                    },
+                    {
+                        "role": "user",
+                        "content": "Me gustar\u00eda que fuese el 17 de julio a la misma hora."
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Excelente. Entonces, \u00bfle reprogramo la cita para viernes? 17 de julio, a las 19 horas. \u00bfLe viene bien?"
+                    },
+                    {
+                        "role": "user",
+                        "content": "Claro,"
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Perfecto. Su cita est\u00e1 reprogramada para viernes, 17 de julio, a las 19 horas. \u00bfHay algo m\u00e1s que necesite?"
+                    },
+                    {
+                        "role": "user",
+                        "content": "No, est\u00e1 todo perfecto, muchas gracias."
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "De nada. Gracias a usted. Tenga un excelente d\u00eda. Hasta luego."
+                    }
+                ]
+            },
+            "messages": [
+                {
+                    "role": "system",
+                    "time": 1784220877099,
+                    "message": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   - Reprogramar: pregunta qu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor, prop\u00f3n una alternativa concreta y confirma la nueva cita.\n   - Cancelar: confirma la cancelaci\u00f3n y ofrece la posibilidad de reagendar m\u00e1s adelante.\n5) Cierre: resume la acci\u00f3n tomada (confirmada / nueva fecha / cancelada) y desp\u00eddete amablemente.\n\nManejo de situaciones:\n- Si no es la persona correcta: disc\u00falpate brevemente y finaliza.\n- Si dicen que no les interesa o piden no ser llamados: resp\u00e9talo, disc\u00falpate y cierra con cortes\u00eda.\n- Si piden informaci\u00f3n: responde de forma concisa y vuelve al objetivo de gestionar la cita.\n\nEstilo:\n- Espa\u00f1ol natural, tono profesional y amable.\n- Respuestas cortas (1\u20132 frases), sin mon\u00f3logos.\n- Nunca inventes datos de la cita, del centro ni del cliente. Si falta informaci\u00f3n, preg\u00fantala.\n- No menciones pol\u00edticas internas ni que eres un modelo de IA.",
+                    "secondsFromStart": 0
+                },
+                {
+                    "role": "bot",
+                    "time": 1784220878892,
+                    "source": "",
+                    "endTime": 1784220884662,
+                    "message": "Hola, buenos d\u00edas. Llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?",
+                    "duration": 4560,
+                    "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                    "assistantName": "Voice Agent",
+                    "secondsFromStart": 1.6
+                },
+                {
+                    "role": "user",
+                    "time": 1784220886512,
+                    "endTime": 1784220889232.001,
+                    "message": "S\u00ed, claro, est\u00e1 hablando con la persona correspondiente.",
+                    "duration": 2720.0009765625,
+                    "metadata": {
+                        "wordLevelConfidence": [
+                            {
+                                "end": 9.54,
+                                "word": "s\u00ed",
+                                "start": 9.22,
+                                "confidence": 0.7963867,
+                                "punctuated_word": "S\u00ed,"
+                            },
+                            {
+                                "end": 9.780001,
+                                "word": "claro",
+                                "start": 9.54,
+                                "confidence": 0.99609375,
+                                "punctuated_word": "claro,"
+                            },
+                            {
+                                "end": 10.02,
+                                "word": "est\u00e1",
+                                "start": 9.780001,
+                                "confidence": 0.9873047,
+                                "punctuated_word": "est\u00e1"
+                            },
+                            {
+                                "end": 10.26,
+                                "word": "hablando",
+                                "start": 10.02,
+                                "confidence": 1,
+                                "punctuated_word": "hablando"
+                            },
+                            {
+                                "end": 10.58,
+                                "word": "con",
+                                "start": 10.26,
+                                "confidence": 1,
+                                "punctuated_word": "con"
+                            },
+                            {
+                                "end": 10.740001,
+                                "word": "la",
+                                "start": 10.58,
+                                "confidence": 1,
+                                "punctuated_word": "la"
+                            },
+                            {
+                                "end": 11.22,
+                                "word": "persona",
+                                "start": 10.740001,
+                                "confidence": 1,
+                                "punctuated_word": "persona"
+                            },
+                            {
+                                "end": 11.940001,
+                                "word": "correspondiente",
+                                "start": 11.22,
+                                "confidence": 0.97143555,
+                                "punctuated_word": "correspondiente."
+                            }
+                        ]
+                    },
+                    "secondsFromStart": 9.22
+                },
+                {
+                    "role": "bot",
+                    "time": 1784220891012,
+                    "source": "",
+                    "endTime": 1784220895342,
+                    "message": "Perfecto, gracias. Es, este, buen momento para hablar unos minutos sobre su cita.",
+                    "duration": 4080,
+                    "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                    "assistantName": "Voice Agent",
+                    "secondsFromStart": 13.72
+                },
+                {
+                    "role": "user",
+                    "time": 1784220896802,
+                    "endTime": 1784220900272,
+                    "message": "Y me gustar\u00eda reprogramar la cita que tengo actualmente.",
+                    "duration": 2960,
+                    "metadata": {
+                        "wordLevelConfidence": [
+                            {
+                                "end": 19.83,
+                                "word": "y",
+                                "start": 19.51,
+                                "confidence": 0.6508789,
+                                "punctuated_word": "Y"
+                            },
+                            {
+                                "end": 20.07,
+                                "word": "me",
+                                "start": 19.83,
+                                "confidence": 0.9970703,
+                                "punctuated_word": "me"
+                            },
+                            {
+                                "end": 20.55,
+                                "word": "gustar\u00eda",
+                                "start": 20.07,
+                                "confidence": 1,
+                                "punctuated_word": "gustar\u00eda"
+                            }
+                        ]
+                    },
+                    "secondsFromStart": 19.51
+                },
+                {
+                    "role": "bot",
+                    "time": 1784220902162,
+                    "source": "",
+                    "endTime": 1784220908081.999,
+                    "message": "Claro, entendido. \u00bfMe podr\u00eda decir qu\u00e9 d\u00eda y hora tiene tiene programada la cita? Actualmente?",
+                    "duration": 5199.9990234375,
+                    "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                    "assistantName": "Voice Agent",
+                    "secondsFromStart": 24.87
+                },
+                {
+                    "role": "user",
+                    "time": 1784220909882,
+                    "endTime": 1784220914672,
+                    "message": "La tengo para el jueves, 16 de de julio, a las 7 de la tarde.",
+                    "duration": 4559.998046875,
+                    "metadata": {
+                        "wordLevelConfidence": [
+                            {
+                                "end": 32.91,
+                                "word": "la",
+                                "start": 32.59,
+                                "confidence": 0.52001953,
+                                "punctuated_word": "La"
+                            },
+                            {
+                                "end": 33.23,
+                                "word": "tengo",
+                                "start": 32.91,
+                                "confidence": 0.99609375,
+                                "punctuated_word": "tengo"
+                            },
+                            {
+                                "end": 33.629997,
+                                "word": "para",
+                                "start": 33.23,
+                                "confidence": 0.99902344,
+                                "punctuated_word": "para"
+                            },
+                            {
+                                "end": 33.87,
+                                "word": "el",
+                                "start": 33.629997,
+                                "confidence": 0.99902344,
+                                "punctuated_word": "el"
+                            },
+                            {
+                                "end": 34.269997,
+                                "word": "jueves",
+                                "start": 33.87,
+                                "confidence": 0.7644043,
+                                "punctuated_word": "jueves,"
+                            },
+                            {
+                                "end": 34.67,
+                                "word": "16",
+                                "start": 34.269997,
+                                "confidence": 0.99902344,
+                                "punctuated_word": "16"
+                            },
+                            {
+                                "end": 34.829998,
+                                "word": "de",
+                                "start": 34.67,
+                                "confidence": 0.3852539,
+                                "punctuated_word": "de"
+                            }
+                        ]
+                    },
+                    "secondsFromStart": 32.59
+                },
+                {
+                    "role": "bot",
+                    "time": 1784220916292,
+                    "source": "",
+                    "endTime": 1784220923772,
+                    "message": "Perfecto. Tengo anotado jueves, 16 de julio, a las 19. \u00bfQu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor para reprogramarla?",
+                    "duration": 7040,
+                    "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                    "assistantName": "Voice Agent",
+                    "secondsFromStart": 39
+                },
+                {
+                    "role": "user",
+                    "time": 1784220925212.002,
+                    "endTime": 1784220928682,
+                    "message": "Me gustar\u00eda que fuese el 17 de julio a la misma hora.",
+                    "duration": 3199.99609375,
+                    "metadata": {
+                        "wordLevelConfidence": [
+                            {
+                                "end": 48.16,
+                                "word": "me",
+                                "start": 47.920002,
+                                "confidence": 0.99316406,
+                                "punctuated_word": "Me"
+                            },
+                            {
+                                "end": 48.56,
+                                "word": "gustar\u00eda",
+                                "start": 48.16,
+                                "confidence": 1,
+                                "punctuated_word": "gustar\u00eda"
+                            },
+                            {
+                                "end": 48.800003,
+                                "word": "que",
+                                "start": 48.56,
+                                "confidence": 1,
+                                "punctuated_word": "que"
+                            },
+                            {
+                                "end": 49.120003,
+                                "word": "fuese",
+                                "start": 48.800003,
+                                "confidence": 1,
+                                "punctuated_word": "fuese"
+                            },
+                            {
+                                "end": 49.36,
+                                "word": "el",
+                                "start": 49.120003,
+                                "confidence": 1,
+                                "punctuated_word": "el"
+                            },
+                            {
+                                "end": 49.760002,
+                                "word": "17",
+                                "start": 49.36,
+                                "confidence": 1,
+                                "punctuated_word": "17"
+                            },
+                            {
+                                "end": 49.920002,
+                                "word": "de",
+                                "start": 49.760002,
+                                "confidence": 1,
+                                "punctuated_word": "de"
+                            },
+                            {
+                                "end": 50.24,
+                                "word": "julio",
+                                "start": 49.920002,
+                                "confidence": 1,
+                                "punctuated_word": "julio"
+                            }
+                        ]
+                    },
+                    "secondsFromStart": 47.920001953125
+                },
+                {
+                    "role": "bot",
+                    "time": 1784220930062,
+                    "source": "",
+                    "endTime": 1784220936421.997,
+                    "message": "Excelente. Entonces, \u00bfle reprogramo la cita para viernes? 17 de julio, a las 19 horas. \u00bfLe viene bien?",
+                    "duration": 5679.9990234375,
+                    "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                    "assistantName": "Voice Agent",
+                    "secondsFromStart": 52.77
+                },
+                {
+                    "role": "user",
+                    "time": 1784220937802.002,
+                    "endTime": 1784220938202,
+                    "message": "Claro,",
+                    "duration": 399.998046875,
+                    "metadata": {
+                        "wordLevelConfidence": [
+                            {
+                                "end": 60.91,
+                                "word": "claro",
+                                "start": 60.510002,
+                                "confidence": 0.7741699,
+                                "punctuated_word": "Claro,"
+                            }
+                        ]
+                    },
+                    "secondsFromStart": 60.510001953125
+                },
+                {
+                    "role": "bot",
+                    "time": 1784220941242,
+                    "source": "",
+                    "endTime": 1784220949402,
+                    "message": "Perfecto. Su cita est\u00e1 reprogramada para viernes, 17 de julio, a las 19 horas. \u00bfHay algo m\u00e1s que necesite?",
+                    "duration": 6640.0048828125,
+                    "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                    "assistantName": "Voice Agent",
+                    "secondsFromStart": 63.95
+                },
+                {
+                    "role": "user",
+                    "time": 1784220950852,
+                    "endTime": 1784220953492,
+                    "message": "No, est\u00e1 todo perfecto, muchas gracias.",
+                    "duration": 2640,
+                    "metadata": {
+                        "wordLevelConfidence": [
+                            {
+                                "end": 73.88,
+                                "word": "no",
+                                "start": 73.56,
+                                "confidence": 0.9916992,
+                                "punctuated_word": "No,"
+                            },
+                            {
+                                "end": 74.2,
+                                "word": "est\u00e1",
+                                "start": 73.88,
+                                "confidence": 0.9970703,
+                                "punctuated_word": "est\u00e1"
+                            },
+                            {
+                                "end": 74.84,
+                                "word": "todo",
+                                "start": 74.2,
+                                "confidence": 0.99902344,
+                                "punctuated_word": "todo"
+                            },
+                            {
+                                "end": 75.64,
+                                "word": "perfecto",
+                                "start": 74.92,
+                                "confidence": 0.765625,
+                                "punctuated_word": "perfecto,"
+                            },
+                            {
+                                "end": 75.96,
+                                "word": "muchas",
+                                "start": 75.64,
+                                "confidence": 0.99902344,
+                                "punctuated_word": "muchas"
+                            },
+                            {
+                                "end": 76.2,
+                                "word": "gracias",
+                                "start": 75.96,
+                                "confidence": 1,
+                                "punctuated_word": "gracias."
+                            }
+                        ]
+                    },
+                    "secondsFromStart": 73.56
+                },
+                {
+                    "role": "bot",
+                    "time": 1784220954451.996,
+                    "source": "",
+                    "endTime": 1784220959012,
+                    "message": "De nada. Gracias a usted. Tenga un excelente d\u00eda. Hasta luego.",
+                    "duration": 3360.00390625,
+                    "assistantId": "6664de95-172d-441f-9495-82e28cfddc71",
+                    "assistantName": "Voice Agent",
+                    "secondsFromStart": 77.15999609375
+                }
+            ],
+            "assistant": {
+                "id": "6664de95-172d-441f-9495-82e28cfddc71",
+                "name": "Voice Agent",
+                "model": {
+                    "model": "claude-haiku-4-5-20251001",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "Eres un asistente de voz que realiza llamadas salientes en nombre de un centro para gestionar las citas de sus clientes. Tu funci\u00f3n es confirmar, reprogramar o cancelar una cita previamente registrada, seg\u00fan lo que indique la persona.\n\nObjetivo:\n- En 2\u20134 minutos, resolver el estado de la cita del interlocutor: confirmada, reprogramada o cancelada.\n- Hacer preguntas cortas, una a la vez.\n- Cerrar la llamada con una acci\u00f3n clara y confirmada.\n\nGu\u00eda de conversaci\u00f3n:\n1) Verifica y pide permiso: confirma que hablas con la persona correcta y pregunta si es un buen momento. Si no lo es, ofrece llamar en otro momento y desp\u00eddete con cortes\u00eda.\n2) Motivo de la llamada: indica que llamas para gestionar su pr\u00f3xima cita. Si conoces la fecha y hora, recu\u00e9rdalas; si no las tienes, pregunta a qu\u00e9 cita se refiere.\n3) Determina la intenci\u00f3n: pregunta si desea confirmar, reprogramar o cancelar la cita.\n4) Resuelve seg\u00fan la respuesta:\n   - Confirmar: agradece la confirmaci\u00f3n y resume el d\u00eda y la hora.\n   - Reprogramar: pregunta qu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor, prop\u00f3n una alternativa concreta y confirma la nueva cita.\n   - Cancelar: confirma la cancelaci\u00f3n y ofrece la posibilidad de reagendar m\u00e1s adelante.\n5) Cierre: resume la acci\u00f3n tomada (confirmada / nueva fecha / cancelada) y desp\u00eddete amablemente.\n\nManejo de situaciones:\n- Si no es la persona correcta: disc\u00falpate brevemente y finaliza.\n- Si dicen que no les interesa o piden no ser llamados: resp\u00e9talo, disc\u00falpate y cierra con cortes\u00eda.\n- Si piden informaci\u00f3n: responde de forma concisa y vuelve al objetivo de gestionar la cita.\n\nEstilo:\n- Espa\u00f1ol natural, tono profesional y amable.\n- Respuestas cortas (1\u20132 frases), sin mon\u00f3logos.\n- Nunca inventes datos de la cita, del centro ni del cliente. Si falta informaci\u00f3n, preg\u00fantala.\n- No menciones pol\u00edticas internas ni que eres un modelo de IA."
+                        }
+                    ],
+                    "provider": "anthropic",
+                    "maxTokens": 250
+                },
+                "orgId": "3658ebd9-1223-49a8-9361-8ea8a935acec",
+                "voice": {
+                    "version": "2",
+                    "voiceId": "Elliot",
+                    "language": "es",
+                    "provider": "vapi"
+                },
+                "server": {
+                    "url": "[redacted]",
+                    "timeoutSeconds": 20
+                },
+                "createdAt": "2026-07-02T15:25:37.501Z",
+                "updatedAt": "2026-07-16T16:43:43.655Z",
+                "transcriber": {
+                    "model": "nova-3",
+                    "language": "es",
+                    "provider": "deepgram",
+                    "fallbackPlan": {
+                        "autoFallback": {
+                            "enabled": true
+                        }
+                    }
+                },
+                "artifactPlan": {
+                    "scorecardIds": [
+                        "89e117ee-cf75-4ae3-9fa2-ee92484a7c40"
+                    ]
+                },
+                "firstMessage": "Hola, buenos d\u00edas. Le llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?",
+                "clientMessages": [
+                    "transcript",
+                    "hang",
+                    "metadata",
+                    "tool-calls",
+                    "tool-calls-result",
+                    "tool.completed",
+                    "transfer-update",
+                    "user-interrupted",
+                    "status-update",
+                    "assistant.started"
+                ],
+                "compliancePlan": {
+                    "pciEnabled": false,
+                    "zdrEnabled": false,
+                    "hipaaEnabled": false
+                },
+                "stopSpeakingPlan": {
+                    "numWords": 0,
+                    "voiceSeconds": 0.2,
+                    "backoffSeconds": 1
+                },
+                "startSpeakingPlan": {
+                    "waitSeconds": 0.4,
+                    "transcriptionEndpointingPlan": {
+                        "onNumberSeconds": 0.5,
+                        "onPunctuationSeconds": 0.1,
+                        "onNoPunctuationSeconds": 1.5
+                    }
+                }
+            },
+            "startedAt": "2026-07-16T16:54:37.292Z",
+            "timestamp": 1784220971871,
+            "durationMs": 84397,
+            "transcript": "AI: Hola, buenos d\u00edas. Llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?\nUser: S\u00ed, claro, est\u00e1 hablando con la persona correspondiente.\nAI: Perfecto, gracias. Es, este, buen momento para hablar unos minutos sobre su cita.\nUser: Y me gustar\u00eda reprogramar la cita que tengo actualmente.\nAI: Claro, entendido. \u00bfMe podr\u00eda decir qu\u00e9 d\u00eda y hora tiene tiene programada la cita? Actualmente?\nUser: La tengo para el jueves, 16 de de julio, a las 7 de la tarde.\nAI: Perfecto. Tengo anotado jueves, 16 de julio, a las 19. \u00bfQu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor para reprogramarla?\nUser: Me gustar\u00eda que fuese el 17 de julio a la misma hora.\nAI: Excelente. Entonces, \u00bfle reprogramo la cita para viernes? 17 de julio, a las 19 horas. \u00bfLe viene bien?\nUser: Claro,\nAI: Perfecto. Su cita est\u00e1 reprogramada para viernes, 17 de julio, a las 19 horas. \u00bfHay algo m\u00e1s que necesite?\nUser: No, est\u00e1 todo perfecto, muchas gracias.\nAI: De nada. Gracias a usted. Tenga un excelente d\u00eda. Hasta luego.\n",
+            "endedReason": "customer-ended-call",
+            "recordingUrl": "[redacted]",
+            "costBreakdown": {
+                "llm": 0.0069,
+                "stt": 0.0142,
+                "tts": 0.0169,
+                "chat": 0,
+                "vapi": 0.0703,
+                "total": 0.1144,
+                "transport": 0,
+                "ttsCharacters": 563,
+                "llmPromptTokens": 5763,
+                "knowledgeBaseCost": 0,
+                "llmCompletionTokens": 235,
+                "analysisCostBreakdown": {
+                    "summary": 0.0002,
+                    "structuredData": 0,
+                    "structuredOutput": 0,
+                    "successEvaluation": 0.0058,
+                    "summaryPromptTokens": 344,
+                    "summaryCompletionTokens": 49,
+                    "summaryCachedPromptTokens": 0,
+                    "structuredDataPromptTokens": 0,
+                    "structuredOutputPromptTokens": 0,
+                    "successEvaluationPromptTokens": 1766,
+                    "structuredDataCompletionTokens": 0,
+                    "structuredDataCachedPromptTokens": 0,
+                    "structuredOutputCompletionTokens": 0,
+                    "successEvaluationCompletionTokens": 36,
+                    "structuredOutputCachedPromptTokens": 0,
+                    "successEvaluationCachedPromptTokens": 0
+                },
+                "llmCachedPromptTokens": 0,
+                "voicemailDetectionCost": 0
+            },
+            "durationMinutes": 1.4066,
+            "durationSeconds": 84.397,
+            "stereoRecordingUrl": "[redacted]"
+        }
+    },
+    {
+        "event_id": "056b54e9-6ead-5b06-8f35-f0951bcae1e3",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "system.latency_measured",
+        "source": "system",
+        "sequence_number": 3,
+        "timestamp": "2026-07-16T16:56:12.048679Z",
+        "payload": {
+            "unit": "milliseconds",
+            "identity": "056b54e9-6ead-5b06-8f35-f0951bcae1e3",
+            "operation": "webhook_ingestion",
+            "receipt_at": "2026-07-16T16:56:12.007290+00:00",
+            "raw_event_id": "21827686-da4d-4980-b113-1c9f7a469826",
+            "completion_at": "2026-07-16T16:56:12.048679+00:00",
+            "duration_milliseconds": 41.40095898765139
+        }
+    },
+    {
+        "event_id": "1009a168-3a29-4f25-b7c5-e7422e3ed315",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "session.evaluation_triggered",
+        "source": "platform",
+        "sequence_number": 4,
+        "timestamp": "2026-07-16T16:56:12.150960Z",
+        "payload": {}
+    },
+    {
+        "event_id": "880ba5cb-a9da-5290-8823-f18c9580fca5",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.agent_response",
+        "source": "agent",
+        "sequence_number": 5,
+        "timestamp": "2026-07-16T16:54:38.892000Z",
+        "payload": {
+            "role": "assistant",
+            "content": "Hola, buenos d\u00edas. Llamo para gestionar los detalles de su pr\u00f3xima cita. \u00bfHablo con la persona correspondiente?",
+            "identity": "880ba5cb-a9da-5290-8823-f18c9580fca5",
+            "turn_index": 0
+        }
+    },
+    {
+        "event_id": "c9fa13d6-915a-59ed-a71f-45aaaee6c7a6",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.user_input",
+        "source": "user",
+        "sequence_number": 6,
+        "timestamp": "2026-07-16T16:54:46.512000Z",
+        "payload": {
+            "role": "user",
+            "content": "S\u00ed, claro, est\u00e1 hablando con la persona correspondiente.",
+            "identity": "c9fa13d6-915a-59ed-a71f-45aaaee6c7a6",
+            "turn_index": 1
+        }
+    },
+    {
+        "event_id": "1a45358d-6c34-5eb6-b8ab-351a1a2b17ce",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.agent_response",
+        "source": "agent",
+        "sequence_number": 7,
+        "timestamp": "2026-07-16T16:54:51.012000Z",
+        "payload": {
+            "role": "assistant",
+            "content": "Perfecto, gracias. Es, este, buen momento para hablar unos minutos sobre su cita.",
+            "identity": "1a45358d-6c34-5eb6-b8ab-351a1a2b17ce",
+            "turn_index": 2
+        }
+    },
+    {
+        "event_id": "2613e69e-7c98-5b8c-86b4-cd2509fb58d8",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.user_input",
+        "source": "user",
+        "sequence_number": 8,
+        "timestamp": "2026-07-16T16:54:56.802000Z",
+        "payload": {
+            "role": "user",
+            "content": "Y me gustar\u00eda reprogramar la cita que tengo actualmente.",
+            "identity": "2613e69e-7c98-5b8c-86b4-cd2509fb58d8",
+            "turn_index": 3
+        }
+    },
+    {
+        "event_id": "11f2c07c-f5a1-5fa9-b819-a394ebf17619",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.agent_response",
+        "source": "agent",
+        "sequence_number": 9,
+        "timestamp": "2026-07-16T16:55:02.162000Z",
+        "payload": {
+            "role": "assistant",
+            "content": "Claro, entendido. \u00bfMe podr\u00eda decir qu\u00e9 d\u00eda y hora tiene tiene programada la cita? Actualmente?",
+            "identity": "11f2c07c-f5a1-5fa9-b819-a394ebf17619",
+            "turn_index": 4
+        }
+    },
+    {
+        "event_id": "5c3c5911-c4b1-53b1-af58-647e0c2f2c16",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.user_input",
+        "source": "user",
+        "sequence_number": 10,
+        "timestamp": "2026-07-16T16:55:09.882000Z",
+        "payload": {
+            "role": "user",
+            "content": "La tengo para el jueves, 16 de de julio, a las 7 de la tarde.",
+            "identity": "5c3c5911-c4b1-53b1-af58-647e0c2f2c16",
+            "turn_index": 5
+        }
+    },
+    {
+        "event_id": "481fbf42-bf6e-517e-8ba7-5b29b93f7a2f",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.agent_response",
+        "source": "agent",
+        "sequence_number": 11,
+        "timestamp": "2026-07-16T16:55:16.292000Z",
+        "payload": {
+            "role": "assistant",
+            "content": "Perfecto. Tengo anotado jueves, 16 de julio, a las 19. \u00bfQu\u00e9 d\u00eda y franja horaria le vendr\u00eda mejor para reprogramarla?",
+            "identity": "481fbf42-bf6e-517e-8ba7-5b29b93f7a2f",
+            "turn_index": 6
+        }
+    },
+    {
+        "event_id": "b41b9dd4-be35-51cb-9495-36d6022952cf",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.user_input",
+        "source": "user",
+        "sequence_number": 12,
+        "timestamp": "2026-07-16T16:55:25.212002Z",
+        "payload": {
+            "role": "user",
+            "content": "Me gustar\u00eda que fuese el 17 de julio a la misma hora.",
+            "identity": "b41b9dd4-be35-51cb-9495-36d6022952cf",
+            "turn_index": 7
+        }
+    },
+    {
+        "event_id": "e193c36c-9a3c-5693-b581-30c447d3db37",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.agent_response",
+        "source": "agent",
+        "sequence_number": 13,
+        "timestamp": "2026-07-16T16:55:30.062000Z",
+        "payload": {
+            "role": "assistant",
+            "content": "Excelente. Entonces, \u00bfle reprogramo la cita para viernes? 17 de julio, a las 19 horas. \u00bfLe viene bien?",
+            "identity": "e193c36c-9a3c-5693-b581-30c447d3db37",
+            "turn_index": 8
+        }
+    },
+    {
+        "event_id": "353cc3ee-2c86-5cd1-8fac-e099d1f7a9fa",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.user_input",
+        "source": "user",
+        "sequence_number": 14,
+        "timestamp": "2026-07-16T16:55:37.802002Z",
+        "payload": {
+            "role": "user",
+            "content": "Claro,",
+            "identity": "353cc3ee-2c86-5cd1-8fac-e099d1f7a9fa",
+            "turn_index": 9
+        }
+    },
+    {
+        "event_id": "23def789-cec3-5db8-842d-b8464d6f8fff",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.agent_response",
+        "source": "agent",
+        "sequence_number": 15,
+        "timestamp": "2026-07-16T16:55:41.242000Z",
+        "payload": {
+            "role": "assistant",
+            "content": "Perfecto. Su cita est\u00e1 reprogramada para viernes, 17 de julio, a las 19 horas. \u00bfHay algo m\u00e1s que necesite?",
+            "identity": "23def789-cec3-5db8-842d-b8464d6f8fff",
+            "turn_index": 10
+        }
+    },
+    {
+        "event_id": "522c6b4c-6fe3-573b-b3fd-d671350a0bbe",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.user_input",
+        "source": "user",
+        "sequence_number": 16,
+        "timestamp": "2026-07-16T16:55:50.852000Z",
+        "payload": {
+            "role": "user",
+            "content": "No, est\u00e1 todo perfecto, muchas gracias.",
+            "identity": "522c6b4c-6fe3-573b-b3fd-d671350a0bbe",
+            "turn_index": 11
+        }
+    },
+    {
+        "event_id": "7e193030-1e44-5959-b4d6-675140b9d2e8",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.agent_response",
+        "source": "agent",
+        "sequence_number": 17,
+        "timestamp": "2026-07-16T16:55:54.451996Z",
+        "payload": {
+            "role": "assistant",
+            "content": "De nada. Gracias a usted. Tenga un excelente d\u00eda. Hasta luego.",
+            "identity": "7e193030-1e44-5959-b4d6-675140b9d2e8",
+            "turn_index": 12
+        }
+    },
+    {
+        "event_id": "4d761e92-4f6b-59c5-b53b-bef67b2270a6",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "conversation.goal_achieved",
+        "source": "platform",
+        "sequence_number": 18,
+        "timestamp": "2026-07-16T16:56:11.871000Z",
+        "payload": {
+            "reason": "Caller successfully reorganized their appointment to July 17th at 19:00 as requested",
+            "identity": "4d761e92-4f6b-59c5-b53b-bef67b2270a6"
+        }
+    },
+    {
+        "event_id": "855da34c-bff5-5703-b6bf-187c18d6ec12",
+        "session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+        "event_type": "system.latency_measured",
+        "source": "system",
+        "sequence_number": 19,
+        "timestamp": "2026-07-16T16:56:51.587922Z",
+        "payload": {
+            "unit": "milliseconds",
+            "identity": "855da34c-bff5-5703-b6bf-187c18d6ec12",
+            "operation": "evidence_evaluation",
+            "report_id": "65586417-291a-4a62-a051-0775029ecd60",
+            "started_at": "2026-07-16T16:56:51.572055+00:00",
+            "completed_at": "2026-07-16T16:56:51.587922+00:00",
+            "duration_milliseconds": 15.870041999733075
+        }
+    }
+]

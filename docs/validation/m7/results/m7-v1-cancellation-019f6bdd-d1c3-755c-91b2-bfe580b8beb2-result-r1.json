@@ -1,0 +1,52 @@
+{
+  "protocol_version": "1.0.0",
+  "scenario_id": "cancellation",
+  "run_id": "local-run-003",
+  "call_or_session_id": "019f6bdd-d1c3-755c-91b2-bfe580b8beb2",
+  "environment": {
+    "name": "local",
+    "version": "main-815cf0f"
+  },
+  "timestamps": {
+    "prepared_at": "2026-07-16T16:58:52.005Z",
+    "completed_at": "2026-07-16T17:00:10.917013Z"
+  },
+  "observed_outcome": {
+    "result": "appointment_cancelled",
+    "summary": "The governed assistant cancelled the intended fictitious appointment (16 July 20:00). The caller declined rescheduling and no replacement booking was created. Session ended normally; evaluation report generated with result passed, global score 99.48 and no blocking flags."
+  },
+  "governance_trace": [
+    {
+      "kind": "session",
+      "reference": "019f6bdd-d1c3-755c-91b2-bfe580b8beb2"
+    },
+    {
+      "kind": "event-session-started",
+      "reference": "bd1b8208-3177-452c-afd0-1b59781d8278"
+    },
+    {
+      "kind": "event-session-ended",
+      "reference": "f656f4f0-6fbc-46e7-b02e-7445fe5f8160"
+    },
+    {
+      "kind": "event-evaluation-triggered",
+      "reference": "b044279e-73ee-4ee9-9bcc-7d3690955f23"
+    },
+    {
+      "kind": "evaluation-report",
+      "reference": "b2e7c1a6-7a77-477d-b2ec-742049105ca1"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "report",
+      "name": "m7-v1-cancellation-019f6bdd-d1c3-755c-91b2-bfe580b8beb2-report-r1.json"
+    },
+    {
+      "kind": "events-trace",
+      "name": "m7-v1-cancellation-019f6bdd-d1c3-755c-91b2-bfe580b8beb2-events-r1.json"
+    }
+  ],
+  "diagnostics": [],
+  "verdict": "PASS"
+}
