@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     vapi_api_key: str = ""
     vapi_base_url: str = "https://api.vapi.ai"
     vapi_timeout_seconds: float = 10.0
+    jwt_secret: str = ""
+    dashboard_username: str = ""
+    dashboard_password_hash: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

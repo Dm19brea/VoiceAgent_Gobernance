@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
 os.environ["GOVERNANCE_DISABLE_DOTENV"] = "1"
 
 from src.adapters.rest.agent_routes import get_assistant_directory
+from src.adapters.rest.auth import require_auth
 from src.domain.agent import Agent
 from src.infrastructure.config import settings
 from src.infrastructure.db.base import Base
@@ -46,6 +47,18 @@ def _offline_assistant_directory() -> Generator[None, None, None]:
     app.dependency_overrides[get_assistant_directory] = lambda: FakeAssistantDirectory(exists=True)
     yield
     app.dependency_overrides.pop(get_assistant_directory, None)
+
+
+@pytest.fixture(autouse=True)
+def _bypass_dashboard_auth() -> Generator[None, None, None]:
+    """Bypass JWT auth by default in every test (S2).
+
+    Tests exercising the auth guard itself (`tests/test_auth.py`) pop this
+    override per-test to exercise the real anonymous/valid-token paths.
+    """
+    app.dependency_overrides[require_auth] = lambda: "test-user"
+    yield
+    app.dependency_overrides.pop(require_auth, None)
 
 
 @pytest.fixture(autouse=True)
