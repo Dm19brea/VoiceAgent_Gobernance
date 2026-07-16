@@ -8,8 +8,11 @@ client disconnects.
 import asyncio
 from typing import Any
 
+import jwt
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from starlette import status
 
+from src.adapters.rest.auth import verify_token
 from src.application.ports.active_sessions import ActiveSessionSnapshot
 from src.infrastructure.redis.active_sessions import get_active_session_store
 
@@ -19,7 +22,19 @@ ACTIVE_SESSIONS_INTERVAL = 2.0
 
 
 @router.websocket("/ws/active-sessions")
-async def active_sessions_ws(websocket: WebSocket) -> None:
+async def active_sessions_ws(websocket: WebSocket, token: str | None = None) -> None:
+    """Stream active sessions (S2: browsers can't set WS headers, so the
+    token travels as ``?token=``; it is verified BEFORE ``accept()`` and the
+    connection is closed with 1008 on missing/invalid token)."""
+    if token is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    try:
+        verify_token(token)
+    except jwt.PyJWTError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
     store = get_active_session_store()
     try:

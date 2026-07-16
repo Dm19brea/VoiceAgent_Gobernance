@@ -69,10 +69,23 @@ El repositorio ya incluye una plantilla (`backend/.env.example`) con todos los v
 cp backend/.env.example backend/.env
 ```
 
-Después abre `backend/.env` y rellena las **dos únicas variables vacías**:
+Después abre `backend/.env` y rellena las **dos variables vacías de la plantilla**:
 
 - `VAPI_API_KEY`: dashboard de Vapi → **Settings → API Keys**.
 - `OPENROUTER_API_KEY`: <https://openrouter.ai/keys> (la usa el juez LLM del scoring).
+
+Añade además estas tres variables (no vienen en la plantilla porque protegen el login del dashboard, S2 de este cambio):
+
+- `JWT_SECRET`: cadena aleatoria larga (32+ caracteres) — firma los tokens de sesión del dashboard. Genera una con `openssl rand -hex 32`.
+- `DASHBOARD_USERNAME`: el usuario con el que iniciarás sesión en el dashboard (p. ej. `admin`).
+- `DASHBOARD_PASSWORD_HASH`: hash bcrypt de tu contraseña de dashboard (nunca la contraseña en texto plano). Genera el hash así:
+
+  ```sh
+  cd backend
+  uv run python -c "import bcrypt; print(bcrypt.hashpw(b'TU_CONTRASENA', bcrypt.gensalt()).decode())"
+  ```
+
+  Copia la salida completa (empieza por `$2b$...`) como valor de `DASHBOARD_PASSWORD_HASH`.
 
 El resto de valores (Postgres, Redis, CORS, URLs base) ya vienen configurados para el `docker-compose.yml` de este repo — no los toques.
 
@@ -125,7 +138,7 @@ npm run dev
 
 > Solo si necesitas apuntar a otra API o cambiar el nivel de log, crea `frontend/.env.local` con `NEXT_PUBLIC_API_URL` y/o `NEXT_PUBLIC_LOG_LEVEL` (valores: `trace | debug | info | warn | error`). El WebSocket se deriva automáticamente de la URL de la API.
 
-Verificación: abre <http://localhost:3000> — el dashboard debe cargar sin errores en la consola del navegador.
+Verificación: abre <http://localhost:3000> — el dashboard te redirige a `/login`. Entra con `DASHBOARD_USERNAME` y la contraseña en texto plano cuyo hash configuraste en `DASHBOARD_PASSWORD_HASH`. Tras iniciar sesión, el resto de páginas debe cargar sin errores en la consola del navegador.
 
 ### Paso 8 — Exponer la API a Vapi (túnel)
 
@@ -189,7 +202,12 @@ En **Variables**, añade:
 DATABASE_URL=${{<SERVICIO_POSTGRES>.DATABASE_URL}}
 REDIS_URL=${{<SERVICIO_REDIS>.REDIS_URL}}
 VAPI_API_KEY=<TU_API_KEY_DE_VAPI>
+JWT_SECRET=<CADENA_ALEATORIA_LARGA>
+DASHBOARD_USERNAME=<TU_USUARIO_DE_DASHBOARD>
+DASHBOARD_PASSWORD_HASH=<HASH_BCRYPT_DE_TU_CONTRASENA>
 ```
+
+`JWT_SECRET`, `DASHBOARD_USERNAME` y `DASHBOARD_PASSWORD_HASH` se generan igual que en el entorno local (ver Parte 1, Paso 3).
 
 Después, ve a **Settings → Networking → Generate Domain** y guarda la URL como `<BACKEND_URL>`.
 
@@ -275,6 +293,9 @@ Por último, abre `<FRONTEND_URL>` y registra el asistente como agente gobernado
 | `VAPI_API_KEY` | API, worker | secreto | secreto |
 | `VAPI_BASE_URL` | API, worker | `https://api.vapi.ai` (defecto) | igual |
 | `VAPI_TIMEOUT_SECONDS` | API, worker | `10.0` (defecto) | igual |
+| `JWT_SECRET` | API | secreto (32+ caracteres) | secreto (32+ caracteres) |
+| `DASHBOARD_USERNAME` | API | tu usuario de dashboard | tu usuario de dashboard |
+| `DASHBOARD_PASSWORD_HASH` | API | hash bcrypt de tu contraseña | hash bcrypt de tu contraseña |
 | `OPENROUTER_API_KEY` | API, worker | secreto | secreto |
 | `OPENROUTER_BASE_URL` | API, worker | `https://openrouter.ai/api/v1` (defecto) | igual |
 | `OPENROUTER_TIMEOUT_SECONDS` | API, worker | `10.0` (defecto) | igual |

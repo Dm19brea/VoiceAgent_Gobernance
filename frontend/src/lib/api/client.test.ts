@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   deleteAgent,
@@ -7,10 +7,16 @@ import {
   getAgents,
   getReport,
   getSessions,
+  login,
   registerAgent,
 } from "@/lib/api/client";
 import { apiBaseUrl } from "@/lib/api/config";
+import { clearToken, getToken, setToken } from "@/lib/auth/token";
 import { server } from "@/test/msw/server";
+
+afterEach(() => {
+  clearToken();
+});
 
 describe("getSessions", () => {
   it("fetches and returns typed sessions from the API", async () => {
@@ -200,5 +206,61 @@ describe("deleteAgent", () => {
     server.use(http.delete(`${apiBaseUrl}/agents/:id`, () => new HttpResponse(null, { status: 404 })));
 
     await expect(deleteAgent("missing")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("login", () => {
+  it("stores the returned token on success", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/auth/login`, async ({ request }) => {
+        const body = (await request.json()) as { username: string; password: string };
+        expect(body).toMatchObject({ username: "admin", password: "correct-horse" });
+        return HttpResponse.json({ access_token: "fake-jwt-token", token_type: "bearer" });
+      }),
+    );
+
+    await login("admin", "correct-horse");
+
+    expect(getToken()).toBe("fake-jwt-token");
+  });
+
+  it("throws an ApiError with status 401 on wrong credentials and stores no token", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/auth/login`, () => new HttpResponse(null, { status: 401 })),
+    );
+
+    await expect(login("admin", "wrong")).rejects.toMatchObject({ status: 401 });
+    expect(getToken()).toBeNull();
+  });
+});
+
+describe("authenticated requests", () => {
+  it("attaches the stored token as a Bearer Authorization header", async () => {
+    setToken("stored-token");
+    let receivedAuth: string | null = null;
+    server.use(
+      http.get(`${apiBaseUrl}/sessions`, ({ request }) => {
+        receivedAuth = request.headers.get("Authorization");
+        return HttpResponse.json([]);
+      }),
+    );
+
+    await getSessions();
+
+    expect(receivedAuth).toBe("Bearer stored-token");
+  });
+
+  it("sends no Authorization header when no token is stored", async () => {
+    let receivedAuth: string | null = "unset";
+    server.use(
+      http.get(`${apiBaseUrl}/sessions`, ({ request }) => {
+        receivedAuth = request.headers.get("Authorization");
+        return HttpResponse.json([]);
+      }),
+    );
+
+    await getSessions();
+
+    expect(receivedAuth).toBeNull();
   });
 });

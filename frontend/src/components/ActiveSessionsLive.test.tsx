@@ -1,6 +1,8 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { clearToken, setToken } from "@/lib/auth/token";
+
 import { ActiveSessionsLive } from "./ActiveSessionsLive";
 
 class MockWebSocket {
@@ -20,7 +22,10 @@ class MockWebSocket {
 }
 
 describe("ActiveSessionsLive", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearToken();
+  });
 
   it("renders active sessions pushed over the socket", () => {
     vi.stubGlobal("WebSocket", MockWebSocket);
@@ -38,5 +43,14 @@ describe("ActiveSessionsLive", () => {
     });
 
     expect(screen.getByText("call-live")).toBeInTheDocument();
+  });
+
+  it("appends the stored auth token as a WS query param", () => {
+    setToken("ws-test-token");
+    vi.stubGlobal("WebSocket", MockWebSocket);
+
+    render(<ActiveSessionsLive />);
+
+    expect(MockWebSocket.last?.url).toContain("?token=ws-test-token");
   });
 });
