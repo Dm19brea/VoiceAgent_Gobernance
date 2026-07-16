@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://governance-platform.invalid/schemas/m7/validation-result-1.0.0.json",
+  "title": "M7 validation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "scenario_id",
+    "run_id",
+    "call_or_session_id",
+    "environment",
+    "timestamps",
+    "observed_outcome",
+    "governance_trace",
+    "evidence",
+    "diagnostics",
+    "verdict"
+  ],
+  "allOf": [
+    {"if":{"properties":{"scenario_id":{"const":"confirmation"}}},"then":{"properties":{"evidence":{"items":{"properties":{"name":{"pattern":"^m7-v1-confirmation-[a-z0-9-]+-[a-z0-9-]+-(r[0-9]+|[0-9]{8}t[0-9]{6}z)\\.[a-z0-9]+$"}}}}}}},
+    {"if":{"properties":{"scenario_id":{"const":"rescheduling"}}},"then":{"properties":{"evidence":{"items":{"properties":{"name":{"pattern":"^m7-v1-rescheduling-[a-z0-9-]+-[a-z0-9-]+-(r[0-9]+|[0-9]{8}t[0-9]{6}z)\\.[a-z0-9]+$"}}}}}}},
+    {"if":{"properties":{"scenario_id":{"const":"cancellation"}}},"then":{"properties":{"evidence":{"items":{"properties":{"name":{"pattern":"^m7-v1-cancellation-[a-z0-9-]+-[a-z0-9-]+-(r[0-9]+|[0-9]{8}t[0-9]{6}z)\\.[a-z0-9]+$"}}}}}}},
+    {"if":{"properties":{"verdict":{"const":"FAIL"}}},"then":{"properties":{"diagnostics":{"minItems":1}}}},
+    {"if":{"properties":{"verdict":{"const":"PASS"}}},"then":{"properties":{"diagnostics":{"not":{"contains":{"properties":{"code":{"enum":["SESSION_TIMEOUT","EVALUATION_TIMEOUT","EVALUATOR_FAILED","PRECONDITION_UNMET"]}}}}}}}}
+  ],
+  "properties": {
+    "protocol_version": { "const": "1.0.0" },
+    "scenario_id": {
+      "enum": ["confirmation", "rescheduling", "cancellation"]
+    },
+    "run_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "call_or_session_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prepared_at", "completed_at"],
+      "properties": {
+        "prepared_at": { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?Z$" },
+        "completed_at": { "type": "string", "format": "date-time", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?Z$" }
+      }
+    },
+    "observed_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "summary"],
+      "properties": {
+        "result": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "governance_trace": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "reference"],
+        "properties": {
+          "kind": { "type": "string", "minLength": 1 },
+          "reference": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "name"],
+        "properties": {
+          "kind": { "type": "string", "minLength": 1 },
+          "name": {
+            "type": "string",
+            "pattern": "^m7-v1-(confirmation|rescheduling|cancellation)-[a-z0-9-]+-[a-z0-9-]+-(r[0-9]+|[0-9]{8}t[0-9]{6}z)\\.[a-z0-9]+$"
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "enum": [
+              "SESSION_TIMEOUT",
+              "PRECONDITION_UNMET",
+              "SESSION_FAILED",
+              "EVALUATION_TIMEOUT",
+              "EVALUATOR_FAILED",
+              "API_ERROR"
+            ]
+          },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verdict": { "enum": ["PASS", "FAIL"] }
+  }
+}
