@@ -69,8 +69,8 @@ export function ScoringHelpDialog() {
                       el agente se queda mudo, algo fue mal.
                     </li>
                     <li>
-                      <strong>¿Se terminaron las frases?</strong> Que nadie se quedara a
-                      medias al hablar.
+                      <strong>¿Dejaron terminar al agente?</strong> Cuenta cuántas veces el
+                      cliente cortó al agente a mitad de frase (interrupciones).
                     </li>
                     <li>
                       <strong>¿Hubo silencios incómodos?</strong> Pausas largas en las que
