@@ -11,6 +11,10 @@ from src.adapters.rest.auth import issue_token, require_auth, verify_token
 from src.infrastructure.config import settings
 from src.main import app
 
+# Fictitious login values used only by these tests — not real credentials.
+_VALID_LOGIN = "correct-horse"
+_WRONG_LOGIN = "nope"
+
 
 def _set_credentials(monkeypatch: pytest.MonkeyPatch, username: str, password: str) -> None:
     monkeypatch.setattr(settings, "dashboard_username", username)
@@ -59,10 +63,10 @@ class TestLoginEndpoint:
     async def test_correct_credentials_issue_token(
         self, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _set_credentials(monkeypatch, "admin", "correct-horse")
+        _set_credentials(monkeypatch, "admin", _VALID_LOGIN)
 
         response = await client.post(
-            "/auth/login", json={"username": "admin", "password": "correct-horse"}
+            "/auth/login", json={"username": "admin", "password": _VALID_LOGIN}
         )
 
         assert response.status_code == 200
@@ -73,19 +77,21 @@ class TestLoginEndpoint:
     async def test_wrong_password_rejected(
         self, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _set_credentials(monkeypatch, "admin", "correct-horse")
+        _set_credentials(monkeypatch, "admin", _VALID_LOGIN)
 
-        response = await client.post("/auth/login", json={"username": "admin", "password": "wrong"})
+        response = await client.post(
+            "/auth/login", json={"username": "admin", "password": _WRONG_LOGIN}
+        )
 
         assert response.status_code == 401
 
     async def test_wrong_username_rejected(
         self, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _set_credentials(monkeypatch, "admin", "correct-horse")
+        _set_credentials(monkeypatch, "admin", _VALID_LOGIN)
 
         response = await client.post(
-            "/auth/login", json={"username": "someone-else", "password": "correct-horse"}
+            "/auth/login", json={"username": "someone-else", "password": _VALID_LOGIN}
         )
 
         assert response.status_code == 401
@@ -97,7 +103,7 @@ class TestLoginEndpoint:
         monkeypatch.setattr(settings, "dashboard_password_hash", "")
 
         response = await client.post(
-            "/auth/login", json={"username": "admin", "password": "anything"}
+            "/auth/login", json={"username": "admin", "password": _WRONG_LOGIN}
         )
 
         assert response.status_code == 401
@@ -114,11 +120,11 @@ class TestRouteGuard:
     async def test_valid_token_allows_request(
         self, client: AsyncClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        _set_credentials(monkeypatch, "admin", "correct-horse")
+        _set_credentials(monkeypatch, "admin", _VALID_LOGIN)
         app.dependency_overrides.pop(require_auth, None)
 
         login_response = await client.post(
-            "/auth/login", json={"username": "admin", "password": "correct-horse"}
+            "/auth/login", json={"username": "admin", "password": _VALID_LOGIN}
         )
         token = login_response.json()["access_token"]
 
