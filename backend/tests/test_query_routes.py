@@ -6,6 +6,7 @@ actually renders (see ``buildTranscript.ts``).
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from src.adapters.rest.query_routes import _to_event_out
 from src.domain.enums import EventType, Source
@@ -14,7 +15,7 @@ from src.domain.event import Event
 TIMESTAMP = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC)
 
 
-def _event(payload: dict) -> Event:
+def _event(payload: dict[str, Any]) -> Event:
     return Event(
         session_id="call-a",
         event_type=EventType.CONVERSATION_AGENT_RESPONSE,
