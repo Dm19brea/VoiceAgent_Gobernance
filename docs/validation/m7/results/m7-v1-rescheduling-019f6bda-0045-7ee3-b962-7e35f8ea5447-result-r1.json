@@ -1,0 +1,52 @@
+{
+  "protocol_version": "1.0.0",
+  "scenario_id": "rescheduling",
+  "run_id": "local-run-002",
+  "call_or_session_id": "019f6bda-0045-7ee3-b962-7e35f8ea5447",
+  "environment": {
+    "name": "local",
+    "version": "main-815cf0f"
+  },
+  "timestamps": {
+    "prepared_at": "2026-07-16T16:54:41.017Z",
+    "completed_at": "2026-07-16T16:56:51.577974Z"
+  },
+  "observed_outcome": {
+    "result": "appointment_rescheduled",
+    "summary": "The governed assistant moved the intended fictitious appointment from Thursday 16 July 19:00 to the intended fictitious replacement slot on Friday 17 July 19:00. No unintended booking was created and no unrelated appointment changed. Session ended normally; evaluation report generated with result passed, global score 87.65 and no blocking flags."
+  },
+  "governance_trace": [
+    {
+      "kind": "session",
+      "reference": "019f6bda-0045-7ee3-b962-7e35f8ea5447"
+    },
+    {
+      "kind": "event-session-started",
+      "reference": "a700ebd4-5e6f-43e1-958a-5979c02d8c8e"
+    },
+    {
+      "kind": "event-session-ended",
+      "reference": "d9e554ff-9215-4d41-a670-d94bb0d96d35"
+    },
+    {
+      "kind": "event-evaluation-triggered",
+      "reference": "1009a168-3a29-4f25-b7c5-e7422e3ed315"
+    },
+    {
+      "kind": "evaluation-report",
+      "reference": "65586417-291a-4a62-a051-0775029ecd60"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "report",
+      "name": "m7-v1-rescheduling-019f6bda-0045-7ee3-b962-7e35f8ea5447-report-r1.json"
+    },
+    {
+      "kind": "events-trace",
+      "name": "m7-v1-rescheduling-019f6bda-0045-7ee3-b962-7e35f8ea5447-events-r1.json"
+    }
+  ],
+  "diagnostics": [],
+  "verdict": "PASS"
+}
