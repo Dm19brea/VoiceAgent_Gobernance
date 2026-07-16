@@ -75,9 +75,7 @@ class TestLoginEndpoint:
     ) -> None:
         _set_credentials(monkeypatch, "admin", "correct-horse")
 
-        response = await client.post(
-            "/auth/login", json={"username": "admin", "password": "wrong"}
-        )
+        response = await client.post("/auth/login", json={"username": "admin", "password": "wrong"})
 
         assert response.status_code == 401
 
@@ -131,8 +129,6 @@ class TestRouteGuard:
     async def test_invalid_token_rejected(self, client: AsyncClient) -> None:
         app.dependency_overrides.pop(require_auth, None)
 
-        response = await client.get(
-            "/agents", headers={"Authorization": "Bearer not-a-real-token"}
-        )
+        response = await client.get("/agents", headers={"Authorization": "Bearer not-a-real-token"})
 
         assert response.status_code == 401
