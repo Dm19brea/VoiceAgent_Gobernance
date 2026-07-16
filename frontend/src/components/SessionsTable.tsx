@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { SessionSummary } from "@/lib/api/types";
+import { formatDateTime, formatScore } from "@/lib/format";
 
 const HEADERS = ["Session", "Agent", "Status", "Result", "Score", "Started"];
 
@@ -37,8 +38,8 @@ export function SessionsTable({ sessions }: Readonly<{ sessions: SessionSummary[
             <td className="py-2 pr-4">{session.agent_name}</td>
             <td className="py-2 pr-4">{session.status}</td>
             <td className="py-2 pr-4">{session.result}</td>
-            <td className="py-2 pr-4">{session.score_global ?? "—"}</td>
-            <td className="py-2 pr-4 text-neutral-500">{session.started_at}</td>
+            <td className="py-2 pr-4 tabular-nums">{formatScore(session.score_global)}</td>
+            <td className="py-2 pr-4 text-neutral-500">{formatDateTime(session.started_at)}</td>
           </tr>
         ))}
       </tbody>

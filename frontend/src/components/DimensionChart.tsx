@@ -4,9 +4,10 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 
 
 import type { Scores } from "@/lib/api/types";
 
+// Operational is intentionally omitted: the dimension is out of the MVP scope
+// (no operational metrics exist, so it never scores).
 const DIMENSIONS: ReadonlyArray<readonly [label: string, key: keyof Scores]> = [
   ["Conversational", "conversational"],
-  ["Operational", "operational"],
   ["Technical", "technical"],
   ["Risk", "risk"],
 ];
@@ -17,7 +18,7 @@ export function DimensionChart({ scores }: Readonly<{ scores: Scores }>) {
     score: scores[key] as number,
   }));
 
-  const summary = data.map((entry) => `${entry.label} ${entry.score}`).join(", ");
+  const summary = data.map((entry) => `${entry.label} ${entry.score.toFixed(2)}`).join(", ");
 
   return (
     <div role="img" aria-label={`Dimension scores: ${summary}`} className="h-64 w-full">
