@@ -23,12 +23,18 @@ describe("ReportScores", () => {
     expect(screen.getByText(/passed/i)).toBeInTheDocument();
   });
 
-  it("renders each available dimension score", () => {
+  it("renders each in-scope dimension score with two decimals", () => {
     render(<ReportScores report={report} />);
 
     expect(screen.getByText(/conversational/i)).toBeInTheDocument();
-    expect(screen.getByText("88")).toBeInTheDocument();
-    expect(screen.getByText("74")).toBeInTheDocument();
+    expect(screen.getByText("88.00")).toBeInTheDocument();
+    expect(screen.getByText("74.00")).toBeInTheDocument();
+  });
+
+  it("does not render the out-of-scope operational dimension", () => {
+    render(<ReportScores report={report} />);
+
+    expect(screen.queryByText(/operational/i)).not.toBeInTheDocument();
   });
 
   it("lists blocking flags when present", () => {

@@ -1,8 +1,10 @@
 import type { Report, Scores } from "@/lib/api/types";
+import { formatScore } from "@/lib/format";
 
+// Operational is intentionally omitted: the dimension is out of the MVP scope
+// (no operational metrics exist, so it never scores).
 const DIMENSIONS: ReadonlyArray<readonly [label: string, key: keyof Scores]> = [
   ["Conversational", "conversational"],
-  ["Operational", "operational"],
   ["Technical", "technical"],
   ["Risk", "risk"],
 ];
@@ -11,7 +13,9 @@ export function ReportScores({ report }: Readonly<{ report: Report }>) {
   return (
     <div className="space-y-6">
       <div className="flex items-baseline gap-4">
-        <span className="text-4xl font-semibold tabular-nums">{report.score_global}</span>
+        <span className="text-4xl font-semibold tabular-nums">
+          {formatScore(report.score_global)}
+        </span>
         <span
           className={
             report.result === "passed"
@@ -23,11 +27,13 @@ export function ReportScores({ report }: Readonly<{ report: Report }>) {
         </span>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {DIMENSIONS.map(([label, key]) => (
           <div key={key} className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
             <dt className="text-xs text-neutral-500">{label}</dt>
-            <dd className="mt-1 text-lg font-medium tabular-nums">{report.scores[key] ?? "—"}</dd>
+            <dd className="mt-1 text-lg font-medium tabular-nums">
+              {formatScore(report.scores[key])}
+            </dd>
           </div>
         ))}
       </dl>
