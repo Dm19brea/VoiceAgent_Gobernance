@@ -159,79 +159,109 @@ Si el log dice `Vapi webhook discarded for ungoverned assistant`, el `assistantI
 
 ## Parte 2 — Entorno RAILWAY
 
-El proyecto en Railway tiene **5 servicios**. Créalos en este orden:
+Railway ejecuta el sistema como **5 servicios**: PostgreSQL, Redis, backend, worker y frontend. Railway asigna nombres automáticamente; puedes conservarlos y reconocer cada servicio por su función.
 
-| # | Servicio | Origen | Config |
-|---|---|---|---|
-| 1 | Postgres | Plugin oficial de Railway | — |
-| 2 | Redis | Plugin oficial de Railway | — |
-| 3 | backend | Este repo, root dir `backend/` | `backend/railway.json` (Dockerfile) |
-| 4 | worker | Este repo, root dir `backend/` | `backend/railway.worker.json` (Dockerfile) |
-| 5 | frontend | Este repo, root dir `frontend/` | `frontend/railway.json` |
+La guía usa estos marcadores. Todos los nombres y dominios de ejemplo son ficticios:
 
-### Servicio 3 — backend
+| Marcador | Ejemplo ficticio |
+|---|---|
+| `<SERVICIO_POSTGRES>` | `postgres-ejemplo` |
+| `<SERVICIO_REDIS>` | `redis-ejemplo` |
+| `<BACKEND_URL>` | `https://backend-ejemplo.up.railway.app` |
+| `<FRONTEND_URL>` | `https://frontend-ejemplo.up.railway.app` |
 
-Variables (dashboard de Railway → servicio backend → **Variables**):
+### Paso 1 — Crear Postgres y Redis
 
-```sh
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-REDIS_URL=${{Redis.REDIS_URL}}
-CORS_ORIGINS=https://<frontend>.up.railway.app
-VAPI_API_KEY=tu-api-key-de-vapi
-OPENROUTER_API_KEY=tu-api-key-de-openrouter
+En el proyecto de Railway, pulsa **Add** y añade una base de datos **PostgreSQL** y otra **Redis**. No necesitas cambiar los nombres que Railway genere.
+
+### Paso 2 — Configurar el backend
+
+Conecta el repositorio y configura:
+
+| Ajuste | Valor |
+|---|---|
+| **Root Directory** | `/backend` |
+| **Railway Config File** | `/backend/railway.json` |
+
+En **Variables**, añade:
+
+```text
+DATABASE_URL=${{<SERVICIO_POSTGRES>.DATABASE_URL}}
+REDIS_URL=${{<SERVICIO_REDIS>.REDIS_URL}}
+VAPI_API_KEY=<TU_API_KEY_DE_VAPI>
 ```
 
-- Las referencias `${{Servicio.VARIABLE}}` las resuelve Railway automáticamente.
-- Sustituye `<frontend>` por el dominio real del servicio frontend (visible tras crearlo — puedes volver y completar esta variable después).
-- `PORT` lo inyecta Railway; el Dockerfile lo expande solo.
-- No hace falta comando de arranque: el `CMD` del Dockerfile aplica las migraciones Alembic y arranca uvicorn.
-- Healthcheck ya configurado en `backend/railway.json`: ruta `/health`.
+Después, ve a **Settings → Networking → Generate Domain** y guarda la URL como `<BACKEND_URL>`.
 
-Verificación:
+No configures `PORT`, Start Command ni Healthcheck: Railway y `backend/railway.json` ya los gestionan. Comprueba el backend con:
 
 ```sh
-curl https://<backend>.up.railway.app/health
+curl <BACKEND_URL>/health
 ```
 
 Debe responder `{"status":"ok"}`.
 
-### Servicio 4 — worker
+### Paso 3 — Configurar el worker
 
-Mismas variables de conexión y secretos que el backend (sin `CORS_ORIGINS`):
+Conecta el mismo repositorio como un servicio independiente y configura:
 
-```sh
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-REDIS_URL=${{Redis.REDIS_URL}}
-VAPI_API_KEY=tu-api-key-de-vapi
-OPENROUTER_API_KEY=tu-api-key-de-openrouter
+| Ajuste | Valor |
+|---|---|
+| **Root Directory** | `/backend` |
+| **Railway Config File** | `/backend/railway.worker.json` |
+
+En **Variables**, añade solo:
+
+```text
+DATABASE_URL=${{<SERVICIO_POSTGRES>.DATABASE_URL}}
+REDIS_URL=${{<SERVICIO_REDIS>.REDIS_URL}}
+OPENROUTER_API_KEY=<TU_API_KEY_DE_OPENROUTER>
 ```
 
-El start command ya viene en `backend/railway.worker.json`:
+El worker no necesita dominio público ni un Start Command manual. Verifica en **Logs** que aparezca `celery@... ready.`.
 
-```
-uv run --no-dev celery -A src.infrastructure.celery.app.celery_app worker --loglevel=info
-```
+### Paso 4 — Configurar el frontend
 
-Verificación: los logs del servicio deben terminar el arranque con `celery@... ready.`.
+Conecta de nuevo el repositorio y configura:
 
-### Servicio 5 — frontend
+| Ajuste | Valor |
+|---|---|
+| **Root Directory** | `/frontend` |
+| Configuración de despliegue | Railway detecta `/frontend/railway.json` automáticamente |
 
-```sh
-NEXT_PUBLIC_API_URL=https://<backend>.up.railway.app
-NEXT_PUBLIC_LOG_LEVEL=info
-```
+En **Variables**, añade:
 
-> **Importante**: `NEXT_PUBLIC_API_URL` se lee en **build time**. Si la cambias, debes redesplegar el frontend. El WebSocket (`wss://<backend>.up.railway.app/ws/active-sessions`) se deriva automáticamente.
-
-### Conectar Vapi a Railway
-
-En el dashboard de Vapi, **Server URL** del asistente (sin túnel — Railway ya es público):
-
-```
-https://<backend>.up.railway.app/webhooks/vapi
+```text
+NEXT_PUBLIC_API_URL=<BACKEND_URL>
 ```
 
-Y registra el asistente como agente gobernado en el dashboard de Railway (`https://<frontend>.up.railway.app`), igual que en el paso 9 local.
+Genera un dominio público y guarda la URL como `<FRONTEND_URL>`. Si cambias `NEXT_PUBLIC_API_URL`, redespliega el frontend porque Next.js la incorpora durante el build.
+
+### Paso 5 — Autorizar el frontend y conectar Vapi
+
+Vuelve al servicio backend y añade esta variable:
+
+```text
+CORS_ORIGINS=<FRONTEND_URL>
+```
+
+Redespliega el backend. Después, configura en Vapi la **Server URL** del asistente:
+
+```text
+<BACKEND_URL>/webhooks/vapi
+```
+
+Por último, abre `<FRONTEND_URL>` y registra el asistente como agente gobernado, igual que en el paso 9 del entorno local.
+
+> No pegues literalmente `<SERVICIO_POSTGRES>` ni `<SERVICIO_REDIS>`. En **Variables → Add Reference**, selecciona la base de datos correspondiente y Railway insertará su nombre real automáticamente.
+
+### Comprobación final
+
+- [ ] Los cinco servicios aparecen activos en Railway.
+- [ ] `<BACKEND_URL>/health` responde `{"status":"ok"}`.
+- [ ] Los logs del worker muestran `celery@... ready.`.
+- [ ] `<FRONTEND_URL>` carga y se conecta al backend.
+- [ ] Vapi envía sus eventos a `<BACKEND_URL>/webhooks/vapi`.
 
 ---
 
