@@ -64,3 +64,6 @@ Thumbs.db
 
 # ---- OpenSpec (SDD artifacts, not product code) ----
 openspec/
+
+# ---- Documentación de diseño/validación (no publicada en GitHub) ----
+docs/
