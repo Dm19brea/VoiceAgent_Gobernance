@@ -1,0 +1,14 @@
+{
+    "report_id": "b2e7c1a6-7a77-477d-b2ec-742049105ca1",
+    "session_id": "019f6bdd-d1c3-755c-91b2-bfe580b8beb2",
+    "score_global": 99.48148148148148,
+    "scores": {
+        "conversational": 100.0,
+        "operational": null,
+        "technical": 97.66666666666667,
+        "risk": 100.0
+    },
+    "result": "passed",
+    "blocking_flags": [],
+    "generated_at": "2026-07-16T17:00:10.917013Z"
+}
