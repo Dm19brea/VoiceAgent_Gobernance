@@ -6,6 +6,7 @@ import { useAgents } from "@/lib/queries/useAgents";
 import { useSessions } from "@/lib/queries/useSessions";
 
 import { SessionsTable } from "./SessionsTable";
+import { Spinner } from "./ui/Spinner";
 
 export function SessionsView() {
   const [agentId, setAgentId] = useState<string | null>(null);
@@ -31,7 +32,10 @@ export function SessionsView() {
       </label>
 
       {isPending ? (
-        <p className="text-sm text-neutral-500">Loading sessions…</p>
+        <div className="flex items-center gap-2 text-sm text-neutral-500">
+          <Spinner size="sm" label="Loading sessions" />
+          <span>Loading sessions…</span>
+        </div>
       ) : isError ? (
         <p role="alert" className="text-sm text-red-600">
           Couldn&apos;t load sessions.

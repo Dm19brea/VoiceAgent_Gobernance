@@ -10,11 +10,15 @@ export default async function SessionReportPage({
 
   return (
     <section>
-      <Link href="/" className="text-sm text-neutral-500 hover:underline">
+      <Link href="/" className="text-sm text-muted transition-colors hover:text-foreground hover:underline">
         ← Sessions
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight">Evaluation report</h1>
-      <p className="mt-1 font-mono text-xs text-neutral-500">{id}</p>
+      <div className="mt-2 rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Evaluation report
+        </h1>
+        <p className="mt-1 font-mono text-xs text-muted">{id}</p>
+      </div>
       <div className="mt-6">
         <TranscriptView sessionId={id} />
       </div>

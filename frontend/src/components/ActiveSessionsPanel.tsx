@@ -25,22 +25,31 @@ function isRecentInterruption(lastInterruptionAt: string | null): boolean {
 
 export function ActiveSessionsPanel({ sessions }: Readonly<{ sessions: ActiveSession[] }>) {
   return (
-    <section aria-label="Active sessions">
+    <section
+      aria-label="Active sessions"
+      className="rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]"
+    >
       <div className="flex items-center gap-2">
-        <span className="inline-block h-2 w-2 rounded-full bg-green-500" aria-hidden />
-        <h2 className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-          Active sessions
-        </h2>
+        <span
+          className="inline-block h-2 w-2 rounded-full bg-success shadow-[var(--shadow-glow)] animate-[var(--animate-pulse-ring)]"
+          aria-hidden
+        />
+        <h2 className="text-sm font-medium text-muted">Active sessions</h2>
       </div>
 
       {sessions.length === 0 ? (
-        <p className="mt-2 text-sm text-neutral-500">No active sessions.</p>
+        <p role="status" className="mt-2 text-sm text-muted">
+          No active sessions.
+        </p>
       ) : (
         <ul className="mt-2 space-y-1 text-sm">
           {sessions.map((session) => (
-            <li key={session.session_id} className="flex items-center gap-2">
+            <li
+              key={session.session_id}
+              className="flex items-center gap-2 rounded-[var(--radius-card)] px-1 py-0.5 transition-colors hover:bg-surface-muted"
+            >
               <span className="font-mono text-xs">{session.session_id}</span>
-              <span className="flex items-center gap-1 text-xs text-neutral-500">
+              <span className="flex items-center gap-1 text-xs text-muted">
                 <span
                   className={`inline-block h-2 w-2 rounded-full ${speakingDotClassName(session.speaking_role)}`}
                   aria-hidden
@@ -48,7 +57,7 @@ export function ActiveSessionsPanel({ sessions }: Readonly<{ sessions: ActiveSes
                 {speakingLabel(session.speaking_role)}
               </span>
               {isRecentInterruption(session.last_interruption_at) && (
-                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                <span className="rounded-[var(--radius-badge)] bg-warning-surface px-1.5 py-0.5 text-xs font-medium text-warning-fg transition-colors">
                   User interrupted
                 </span>
               )}

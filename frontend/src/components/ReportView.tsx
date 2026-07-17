@@ -5,12 +5,18 @@ import { useReport } from "@/lib/queries/useReport";
 
 import { DimensionChart } from "./DimensionChart";
 import { ReportScores } from "./ReportScores";
+import { Spinner } from "./ui/Spinner";
 
 export function ReportView({ sessionId }: Readonly<{ sessionId: string }>) {
   const { data, isPending, isError, error } = useReport(sessionId);
 
   if (isPending) {
-    return <p className="text-sm text-neutral-500">Loading report…</p>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-neutral-500">
+        <Spinner size="sm" label="Loading report" />
+        <span>Loading report…</span>
+      </div>
+    );
   }
 
   if (isError) {

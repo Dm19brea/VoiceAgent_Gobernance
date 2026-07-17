@@ -2,6 +2,7 @@ import type { Report, Scores } from "@/lib/api/types";
 import { formatScore } from "@/lib/format";
 
 import { ScoringHelpDialog } from "./ScoringHelpDialog";
+import { StatusBadge } from "./ui/StatusBadge";
 
 // Operational is intentionally omitted: the dimension is out of the MVP scope
 // (no operational metrics exist, so it never scores).
@@ -16,27 +17,22 @@ const DIMENSIONS: ReadonlyArray<readonly [label: string, key: keyof Scores]> = [
 export function ReportScores({ report }: Readonly<{ report: Report }>) {
   return (
     <div className="space-y-6">
-      <div className="flex items-baseline gap-4">
-        <span className="text-4xl font-semibold tabular-nums">
+      <div className="flex flex-wrap items-baseline gap-4 rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]">
+        <span className="text-5xl font-bold tabular-nums text-brand">
           {formatScore(report.score_global)}
         </span>
-        <span
-          className={
-            report.result === "passed"
-              ? "rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800"
-              : "rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800"
-          }
-        >
-          {report.result}
-        </span>
+        <StatusBadge status={report.result} />
         <ScoringHelpDialog />
       </div>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {DIMENSIONS.map(([label, key]) => (
-          <div key={key} className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-            <dt className="text-xs text-neutral-500">{label}</dt>
-            <dd className="mt-1 text-lg font-medium tabular-nums">
+          <div
+            key={key}
+            className="rounded-[var(--radius-card)] border border-border bg-surface p-3 shadow-[var(--shadow-card)]"
+          >
+            <dt className="text-xs text-muted">{label}</dt>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
               {formatScore(report.scores[key])}
             </dd>
           </div>

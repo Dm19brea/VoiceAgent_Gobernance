@@ -3,19 +3,106 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --surface: #ffffff;
+  --surface-muted: #f5f5f5;
+  --border: #e5e5e5;
+  --muted: #737373;
+  --brand: #2563eb;
+  --accent: #3b82f6;
+  --success: #16a34a;
+  --success-surface: #dcfce7;
+  --success-fg: #166534;
+  --danger: #dc2626;
+  --danger-surface: #fee2e2;
+  --danger-fg: #991b1b;
+  --warning: #d97706;
+  --warning-surface: #fef3c7;
+  --warning-fg: #92400e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --surface: #0f0f0f;
+    --surface-muted: #171717;
+    --border: #262626;
+    --muted: #a3a3a3;
+    --success-surface: #052e16;
+    --success-fg: #86efac;
+    --danger-surface: #450a0a;
+    --danger-fg: #fca5a5;
+    --warning-surface: #451a03;
+    --warning-fg: #fcd34d;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
+  --color-success-fg: var(--success-fg);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-fg: var(--danger-fg);
+  --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-fg: var(--warning-fg);
+  --radius-badge: 9999px;
+  --radius-card: 0.5rem;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-glow: 0 0 0 3px rgb(37 99 235 / 0.25);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --animate-spin-slow: spin 0.8s linear infinite;
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.25s ease-out;
+  --animate-pulse-ring: pulse-ring 1.6s ease-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(22 163 74 / 0.5);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 6px rgb(22 163 74 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
 

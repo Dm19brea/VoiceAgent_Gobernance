@@ -45,4 +45,24 @@ describe("SessionsTable", () => {
       "/sessions/call-1",
     );
   });
+
+  it("wraps the status and result values in StatusBadge", () => {
+    render(<SessionsTable sessions={rows} />);
+
+    const badges = screen.getAllByTestId("status-badge");
+    expect(badges).toHaveLength(2);
+    expect(screen.getByText("ended")).toBeInTheDocument();
+    expect(screen.getByText("passed")).toBeInTheDocument();
+  });
+
+  it("wraps a failed result in a StatusBadge with a distinct variant from passed", () => {
+    const failedRows: SessionSummary[] = [
+      { ...rows[0], session_id: "call-2", result: "failed" },
+    ];
+    render(<SessionsTable sessions={failedRows} />);
+
+    const resultBadge = screen.getByText("failed");
+    expect(resultBadge).toHaveAttribute("data-testid", "status-badge");
+    expect(resultBadge.className).toContain("danger");
+  });
 });

@@ -23,13 +23,17 @@ export function DimensionChart({ scores }: Readonly<{ scores: Scores }>) {
   const summary = data.map((entry) => `${entry.label} ${entry.score.toFixed(2)}`).join(", ");
 
   return (
-    <div role="img" aria-label={`Dimension scores: ${summary}`} className="h-64 w-full">
+    <div
+      role="img"
+      aria-label={`Dimension scores: ${summary}`}
+      className="h-64 w-full rounded-[var(--radius-card)] bg-surface p-2 shadow-[var(--shadow-card)]"
+    >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-neutral-200" />
+          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis dataKey="label" tick={{ fontSize: 12 }} />
           <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-          <Bar dataKey="score" fill="#2563eb" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="score" fill="var(--color-brand)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
