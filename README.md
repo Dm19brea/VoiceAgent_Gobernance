@@ -192,15 +192,14 @@ Railway ejecuta cinco servicios: **PostgreSQL, Redis, API, worker y frontend**. 
 │   ├── src/
 │   │   ├── app/                # Rutas Next.js: sesiones, agentes, login y setup
 │   │   ├── components/         # Vistas, tablas, gráficas y controles
+│   │   │   └── ui/             # Primitivas de UI reutilizables (Skeleton, Spinner, StatusBadge)
 │   │   ├── lib/                # Cliente API, autenticación, queries y transcripción
 │   │   └── test/               # Infraestructura de pruebas con MSW
 │   ├── package.json
 │   └── playwright.config.ts
-├── docs/
-│   ├── design/                 # Decisiones y cobertura del modelo de gobernanza
-│   └── validation/m7/          # Protocolo y evidencias de validación extremo a extremo
 ├── CONFIGURACION.md            # Guía completa para local y Railway
-└── docker-compose.yml          # PostgreSQL y Redis para desarrollo local
+├── docker-compose.yml          # PostgreSQL y Redis para desarrollo local
+└── tfm_gobernanza_agentes_de_voz.pptx   # Presentación del TFM
 ```
 
 ### Capas del backend
@@ -304,7 +303,7 @@ npm run build
 npm run test:e2e
 ```
 
-El repositorio incluye además un [protocolo de validación M7](./docs/validation/m7/validation-protocol.md) y [resultados comparados de llamadas reales](./docs/validation/m7/cross-run-analysis.md) para los escenarios de confirmación, reprogramación y cancelación de citas.
+El proyecto se validó además con un protocolo M7 sobre llamadas reales, comparando resultados en los escenarios de confirmación, reprogramación y cancelación de citas. Su documentación y evidencias se mantienen como material interno de diseño, fuera del repositorio publicado.
 
 ---
 
