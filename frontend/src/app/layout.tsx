@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/AppShell";
+import { AuthGate } from "@/components/AuthGate";
 import { QueryProvider } from "@/lib/queries/QueryProvider";
 
 import "./globals.css";
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <QueryProvider>
-          <AppShell>{children}</AppShell>
+          <AppShell>
+            <AuthGate>{children}</AuthGate>
+          </AppShell>
         </QueryProvider>
       </body>
     </html>

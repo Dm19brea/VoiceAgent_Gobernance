@@ -31,6 +31,14 @@ async function installApiIsolation(page: Page) {
   const observedApiRequests = new Set<string>();
   const activeSessionSnapshots: string[] = [];
 
+  // Seed an access token so AuthGate treats the load as authenticated and
+  // renders the dashboard directly, instead of redirecting to /login and
+  // calling GET /auth/status (which this journey does not mock). Mirrors the
+  // storage key used by src/lib/auth/token.ts.
+  await page.addInitScript(() => {
+    window.localStorage.setItem("governance_dashboard_token", "e2e-operator-token");
+  });
+
   await page.route(`${apiOrigin}/**`, async (route) => {
     unexpectedApiRequests.push(`${route.request().method()} ${route.request().url()}`);
     await route.abort();
@@ -47,7 +55,9 @@ async function installApiIsolation(page: Page) {
   await page.route(`${apiOrigin}/sessions/${fixtureSessionId}/report`, (route) =>
     fulfillGet(route, fixtureReport, observedApiRequests, unexpectedApiRequests),
   );
-  await page.routeWebSocket(`${apiOrigin.replace("http", "ws")}/ws/active-sessions`, (server) => {
+  // Match with or without the `?token=` query the client appends when a token
+  // is stored (see src/lib/queries/useActiveSessions.ts).
+  await page.routeWebSocket(/\/ws\/active-sessions/, (server) => {
     const snapshot = JSON.stringify([]);
     activeSessionSnapshots.push(snapshot);
     server.send(snapshot);
@@ -62,7 +72,9 @@ test("operator opens the selected session report", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect.poll(() => activeSessionSnapshots).toEqual(["[]"]);
+  // Dedupe: React StrictMode (dev only) mounts the effect twice, so the mock
+  // can observe the same empty snapshot on more than one short-lived socket.
+  await expect.poll(() => [...new Set(activeSessionSnapshots)]).toEqual(["[]"]);
 
   await page.getByRole("link", { name: fixtureSessionId }).click();
 

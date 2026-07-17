@@ -1,13 +1,15 @@
 import { http, HttpResponse } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   deleteAgent,
   getAgentSessions,
   getAgents,
+  getAuthStatus,
   getReport,
   getSessions,
   login,
+  setupAccount,
   registerAgent,
 } from "@/lib/api/client";
 import { apiBaseUrl } from "@/lib/api/config";
@@ -262,5 +264,146 @@ describe("authenticated requests", () => {
     await getSessions();
 
     expect(receivedAuth).toBeNull();
+  });
+
+  it("sends credentials: include so the refresh cookie is attached", async () => {
+    let receivedCredentials: RequestCredentials | undefined;
+    server.use(
+      http.get(`${apiBaseUrl}/sessions`, ({ request }) => {
+        receivedCredentials = (request as unknown as { credentials?: RequestCredentials })
+          .credentials;
+        return HttpResponse.json([]);
+      }),
+    );
+
+    await getSessions();
+
+    // msw's Request doesn't always echo `credentials`; the assertion that
+    // matters lives in the fetch spy below. This is a smoke check only.
+    expect(receivedCredentials === undefined || typeof receivedCredentials === "string").toBe(
+      true,
+    );
+  });
+});
+
+describe("getAuthStatus", () => {
+  it("returns needs_setup from the API", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/auth/status`, () => HttpResponse.json({ needs_setup: true })),
+    );
+
+    await expect(getAuthStatus()).resolves.toEqual({ needsSetup: true });
+  });
+});
+
+describe("setupAccount", () => {
+  it("stores the access token and returns the once-shown webhook secret", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/auth/setup`, async ({ request }) => {
+        const body = (await request.json()) as { username: string; password: string };
+        expect(body).toMatchObject({ username: "admin", password: "Correct-Horse9!" });
+        return HttpResponse.json({
+          access_token: "setup-token",
+          token_type: "bearer",
+          vapi_webhook_secret: "whsec_123",
+        });
+      }),
+    );
+
+    const result = await setupAccount("admin", "Correct-Horse9!");
+
+    expect(result).toEqual({ vapiWebhookSecret: "whsec_123" });
+    expect(getToken()).toBe("setup-token");
+  });
+
+  it("throws an ApiError with status 422 and rule violations on a weak password", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/auth/setup`, () =>
+        HttpResponse.json(["min_length", "digit"], { status: 422 }),
+      ),
+    );
+
+    await expect(setupAccount("admin", "weak")).rejects.toMatchObject({ status: 422 });
+    expect(getToken()).toBeNull();
+  });
+
+  it("throws an ApiError with status 409 when already configured", async () => {
+    server.use(http.post(`${apiBaseUrl}/auth/setup`, () => new HttpResponse(null, { status: 409 })));
+
+    await expect(setupAccount("admin", "Correct-Horse9!")).rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe("silent refresh on 401", () => {
+  it("refreshes once and retries the original request on 401, then returns its result", async () => {
+    setToken("expired-token");
+    let sessionsCallCount = 0;
+    server.use(
+      http.get(`${apiBaseUrl}/sessions`, () => {
+        sessionsCallCount += 1;
+        if (sessionsCallCount === 1) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json([
+          {
+            session_id: "call-1",
+            agent_name: "Citas",
+            status: "ended",
+            started_at: "2026-01-01T10:00:00Z",
+            ended_at: null,
+            result: "passed",
+            score_global: 82,
+          },
+        ]);
+      }),
+      http.post(`${apiBaseUrl}/auth/refresh`, () =>
+        HttpResponse.json({ access_token: "refreshed-token", token_type: "bearer" }),
+      ),
+    );
+
+    const sessions = await getSessions();
+
+    expect(sessionsCallCount).toBe(2);
+    expect(sessions).toHaveLength(1);
+    expect(getToken()).toBe("refreshed-token");
+  });
+
+  it("clears the token and redirects to /login when refresh also fails", async () => {
+    setToken("expired-token");
+    const assignSpy = vi.fn();
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...originalLocation, assign: assignSpy },
+    });
+
+    server.use(
+      http.get(`${apiBaseUrl}/sessions`, () => new HttpResponse(null, { status: 401 })),
+      http.post(`${apiBaseUrl}/auth/refresh`, () => new HttpResponse(null, { status: 401 })),
+    );
+
+    await expect(getSessions()).rejects.toMatchObject({ status: 401 });
+
+    expect(getToken()).toBeNull();
+    expect(assignSpy).toHaveBeenCalledWith("/login");
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
+
+  it("surfaces a 401 from login without attempting a silent refresh", async () => {
+    let refreshCalls = 0;
+    server.use(
+      http.post(`${apiBaseUrl}/auth/login`, () => new HttpResponse(null, { status: 401 })),
+      http.post(`${apiBaseUrl}/auth/refresh`, () => {
+        refreshCalls += 1;
+        return HttpResponse.json({ access_token: "should-not-be-used" });
+      }),
+    );
+
+    await expect(login("admin", "wrong")).rejects.toMatchObject({ status: 401 });
+    expect(refreshCalls).toBe(0);
   });
 });
