@@ -36,3 +36,4 @@ class AgentOut(BaseModel):
     description: str | None
     vapi_assistant_id: str
     status: str
+    webhook_activated: bool

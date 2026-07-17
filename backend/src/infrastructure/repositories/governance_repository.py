@@ -60,7 +60,10 @@ class SqlAlchemyGovernanceRepository:
         so an omitted description preserves the prior value on update.
         ``deleted_at`` is always reset to ``None`` on conflict (R2b): a
         soft-deleted agent whose ``vapi_assistant_id`` is re-registered is
-        reactivated in place, never duplicated.
+        reactivated in place, never duplicated. ``webhook_activated`` is
+        deliberately excluded from ``set_`` (only present in the insert
+        ``values``) so re-registering a previously activated agent preserves
+        its activation state instead of resetting it to ``False``.
         """
         set_: dict[str, Any] = {
             "name": agent.name,
@@ -80,6 +83,7 @@ class SqlAlchemyGovernanceRepository:
                 description=agent.description if agent.description is not None else "",
                 status=agent.status.value,
                 deleted_at=None,
+                webhook_activated=agent.webhook_activated,
             )
             .on_conflict_do_update(index_elements=["vapi_assistant_id"], set_=set_)
             .returning(AgentModel)
@@ -104,6 +108,26 @@ class SqlAlchemyGovernanceRepository:
         result = await self._session.execute(stmt)
         await self._session.flush()
         return result.scalar_one_or_none() is not None
+
+    async def set_webhook_activated(self, agent_id: UUID, *, activated: bool) -> Agent | None:
+        """Toggle ``webhook_activated`` for a non-deleted agent, atomically.
+
+        Returns ``None`` (no row affected) both when ``agent_id`` does not
+        exist and when it is soft-deleted, so the caller maps both to a 404
+        (mirrors ``soft_delete_agent``). Setting the flag is naturally
+        idempotent: activating an already-activated agent (or deactivating an
+        already-inactive one) still returns the current row.
+        """
+        stmt = (
+            update(AgentModel)
+            .where(AgentModel.agent_id == agent_id, AgentModel.deleted_at.is_(None))
+            .values(webhook_activated=activated)
+            .returning(AgentModel)
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        row = result.scalar_one_or_none()
+        return _to_agent(row) if row is not None else None
 
     async def get_session(self, session_id: str) -> Session | None:
         return await self._load_session(session_id, for_update=False)
@@ -239,6 +263,7 @@ def _to_agent(row: AgentModel) -> Agent:
         status=AgentStatus(row.status),
         agent_id=row.agent_id,
         deleted_at=row.deleted_at,
+        webhook_activated=row.webhook_activated,
     )
 
 
@@ -251,6 +276,7 @@ def _to_agent_model(agent: Agent) -> AgentModel:
         description=agent.description,
         status=agent.status.value,
         deleted_at=agent.deleted_at,
+        webhook_activated=agent.webhook_activated,
     )
 
 

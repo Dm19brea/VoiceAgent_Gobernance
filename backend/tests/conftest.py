@@ -129,7 +129,11 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 
 async def insert_governed_agent(
-    db_session: AsyncSession, vapi_assistant_id: str, *, name: str | None = None
+    db_session: AsyncSession,
+    vapi_assistant_id: str,
+    *,
+    name: str | None = None,
+    webhook_activated: bool = True,
 ) -> Agent:
     """Insert a registered, non-deleted agent for webhook/ingestion tests (R3).
 
@@ -137,6 +141,11 @@ async def insert_governed_agent(
     resolve to a governed (registered, non-deleted) agent, so tests exercising
     the governed path must register the agent up front instead of relying on
     the removed ingestion auto-provisioning.
+
+    ``webhook_activated`` defaults to ``True`` so that existing tests
+    exercising the governed persistence path keep passing once the webhook
+    enforces the activation flag (agent-webhook-activation, PR 2); pass
+    ``webhook_activated=False`` to exercise the 403-rejection path.
     """
     repository = SqlAlchemyGovernanceRepository(db_session)
     agent = await repository.upsert_agent(
@@ -144,6 +153,7 @@ async def insert_governed_agent(
             name=name or f"Agent {vapi_assistant_id}",
             objective="test objective",
             vapi_assistant_id=vapi_assistant_id,
+            webhook_activated=webhook_activated,
         )
     )
     await db_session.commit()

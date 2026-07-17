@@ -23,6 +23,11 @@ class Agent:
     """``None`` while active; set by ``soft_delete_agent`` (R2). A soft-deleted
     agent is excluded from lookups and listings but its history is untouched.
     """
+    webhook_activated: bool = False
+    """Authorization flag gating whether the Vapi webhook accepts events for
+    this agent. Defaults to ``False`` for newly registered and pre-existing
+    agents; toggled via ``set_webhook_activated`` (activate/deactivate).
+    """
 
     def __post_init__(self) -> None:
         if not self.name:

@@ -15,6 +15,7 @@ from src.application.ports.assistant_directory import (
     AssistantDirectory,
     AssistantDirectoryUnavailable,
 )
+from src.application.use_cases.activate_agent import ActivateAgent, DeactivateAgent
 from src.application.use_cases.register_agent import RegisterAgent
 from src.application.use_cases.remove_agent import RemoveAgent
 from src.domain.agent import Agent
@@ -83,6 +84,34 @@ async def remove_agent(agent_id: UUID, db: SessionDep) -> None:
     await db.commit()
 
 
+@router.post(
+    "/agents/{agent_id}/activate",
+    summary="Activate an agent's webhook credentials",
+    responses={404: {"description": "No active agent with that id exists"}},
+)
+async def activate_agent(agent_id: UUID, db: SessionDep) -> AgentOut:
+    repository = SqlAlchemyGovernanceRepository(db)
+    agent = await ActivateAgent(repository).execute(agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    await db.commit()
+    return _to_agent_out(agent)
+
+
+@router.post(
+    "/agents/{agent_id}/deactivate",
+    summary="Deactivate an agent's webhook credentials",
+    responses={404: {"description": "No active agent with that id exists"}},
+)
+async def deactivate_agent(agent_id: UUID, db: SessionDep) -> AgentOut:
+    repository = SqlAlchemyGovernanceRepository(db)
+    agent = await DeactivateAgent(repository).execute(agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    await db.commit()
+    return _to_agent_out(agent)
+
+
 def _to_agent_out(agent: Agent) -> AgentOut:
     return AgentOut(
         agent_id=agent.agent_id,
@@ -91,4 +120,5 @@ def _to_agent_out(agent: Agent) -> AgentOut:
         description=agent.description,
         vapi_assistant_id=agent.vapi_assistant_id,
         status=agent.status.value,
+        webhook_activated=agent.webhook_activated,
     )

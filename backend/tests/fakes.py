@@ -60,6 +60,16 @@ class InMemoryGovernanceRepository:
                 return True
         return False
 
+    async def set_webhook_activated(self, agent_id: UUID, *, activated: bool) -> Agent | None:
+        for assistant_id, agent in self.agents.items():
+            if agent.agent_id == agent_id:
+                if agent.deleted_at is not None:
+                    return None
+                updated = replace(agent, webhook_activated=activated)
+                self.agents[assistant_id] = updated
+                return updated
+        return None
+
     async def get_session(self, session_id: str) -> Session | None:
         return self.sessions.get(session_id)
 
