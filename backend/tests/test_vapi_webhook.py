@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.config import settings
 from src.infrastructure.db.models import RawEvent
+from src.infrastructure.repositories.credentials_repository import CredentialsRepository
 from tests.conftest import insert_governed_agent
 
 # Simulated Vapi server-message webhook: everything is wrapped in "message"
@@ -58,6 +59,66 @@ async def test_vapi_webhook_rejects_wrong_secret_without_persistence(
 
     response = await client.post(
         "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "wrong-secret"}
+    )
+
+    assert response.status_code == 401
+    assert await db_session.scalar(select(RawEvent)) is None
+
+
+async def test_vapi_webhook_accepts_db_provisioned_secret_when_no_env_override(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: MonkeyPatch
+) -> None:
+    """No env override: the DB-provisioned secret is the source of truth."""
+    monkeypatch.setattr(settings, "vapi_webhook_secret", "")
+    repository = CredentialsRepository(db_session)
+    await repository.create(
+        username="admin",
+        password_hash="hashed",
+        jwt_secret="jwt-secret",
+        vapi_webhook_secret="db-provisioned-secret",
+    )
+    await db_session.commit()
+    await insert_governed_agent(db_session, "asst-raw")
+
+    response = await client.post(
+        "/webhooks/vapi",
+        json=VAPI_STATUS_UPDATE,
+        headers={"x-vapi-secret": "db-provisioned-secret"},
+    )
+
+    assert response.status_code == 200
+
+
+async def test_vapi_webhook_rejects_mismatched_db_secret_without_persistence(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: MonkeyPatch
+) -> None:
+    """No env override, wrong header: rejection stays fail-closed."""
+    monkeypatch.setattr(settings, "vapi_webhook_secret", "")
+    repository = CredentialsRepository(db_session)
+    await repository.create(
+        username="admin",
+        password_hash="hashed",
+        jwt_secret="jwt-secret",
+        vapi_webhook_secret="db-provisioned-secret",
+    )
+    await db_session.commit()
+
+    response = await client.post(
+        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "wrong-secret"}
+    )
+
+    assert response.status_code == 401
+    assert await db_session.scalar(select(RawEvent)) is None
+
+
+async def test_vapi_webhook_rejects_when_no_secret_configured_anywhere(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: MonkeyPatch
+) -> None:
+    """Neither env override nor DB row: fail-closed, never accept unconditionally."""
+    monkeypatch.setattr(settings, "vapi_webhook_secret", "")
+
+    response = await client.post(
+        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "anything"}
     )
 
     assert response.status_code == 401

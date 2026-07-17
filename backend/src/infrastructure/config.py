@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     dashboard_username: str = ""
     dashboard_password_hash: str = ""
+    auth_cookie_secure: bool | None = None
 
     @property
     def cors_origin_list(self) -> list[str]:
