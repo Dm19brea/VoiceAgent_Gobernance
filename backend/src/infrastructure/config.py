@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     vapi_api_key: str = ""
     vapi_base_url: str = "https://api.vapi.ai"
     vapi_timeout_seconds: float = 10.0
+    vapi_webhook_secret: str = ""
     jwt_secret: str = ""
     dashboard_username: str = ""
     dashboard_password_hash: str = ""

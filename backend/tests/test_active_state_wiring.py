@@ -13,7 +13,7 @@ from src.application.ports.active_sessions import ActiveSessionSnapshot
 from src.domain.enums import EventType, SessionStatus, Source
 from src.domain.session import Session
 from src.infrastructure.redis.active_sessions import update_active_state
-from tests.conftest import insert_governed_agent
+from tests.conftest import VAPI_WEBHOOK_HEADERS, insert_governed_agent
 
 
 class _FakeStore:
@@ -259,6 +259,7 @@ def _payloads() -> tuple[dict[str, Any], dict[str, Any]]:
 async def test_ingestion_marks_session_active_then_ended(
     client: AsyncClient, db_session: DbSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     await insert_governed_agent(db_session, "asst-a")
     store = _FakeStore()
     monkeypatch.setattr("src.adapters.rest.vapi.get_active_session_store", lambda: store)
@@ -276,6 +277,7 @@ async def test_ingestion_marks_session_active_then_ended(
 async def test_ingestion_marks_session_active_then_failed(
     client: AsyncClient, db_session: DbSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     await insert_governed_agent(db_session, "asst-b")
     store = _FakeStore()
     monkeypatch.setattr("src.adapters.rest.vapi.get_active_session_store", lambda: store)
@@ -301,6 +303,7 @@ async def test_ingestion_marks_session_active_then_failed(
 async def test_ingestion_survives_a_redis_failure(
     client: AsyncClient, db_session: DbSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     await insert_governed_agent(db_session, "asst-a")
     monkeypatch.setattr("src.adapters.rest.vapi.get_active_session_store", lambda: _FailingStore())
     started, _ = _payloads()

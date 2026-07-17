@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.enums import AgentStatus
 from src.infrastructure.db.models import AgentModel, EventModel, RawEvent, SessionModel
 from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
-from tests.conftest import insert_governed_agent
+from tests.conftest import VAPI_WEBHOOK_HEADERS, insert_governed_agent
 
 
 def _call(call_id: str, assistant_id: str) -> dict[str, Any]:
@@ -40,6 +40,7 @@ async def test_unknown_assistant_webhook_is_ignored_and_persists_nothing(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """S12 — an assistant_id that was never registered discards the call."""
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     call = _call("call-unknown", "asst-never-registered")
 
     response = await client.post("/webhooks/vapi", json=_started(call))
@@ -58,6 +59,7 @@ async def test_soft_deleted_assistant_webhook_is_ignored_and_stays_deleted(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """S13 — a soft-deleted assistant's webhook is discarded and the agent stays deleted."""
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     agent = await insert_governed_agent(db_session, "asst-soft-deleted")
     repository = SqlAlchemyGovernanceRepository(db_session)
     await repository.soft_delete_agent(agent.agent_id, deleted_at=datetime.now(UTC))
@@ -80,6 +82,7 @@ async def test_discarded_call_enqueues_no_celery_task(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """S14 — a discarded terminal call must not enqueue evidence building."""
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     calls: list[str] = []
     monkeypatch.setattr(
         "src.adapters.rest.vapi.build_session_evidences",
@@ -96,6 +99,7 @@ async def test_discarded_call_writes_no_redis_active_session(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """S14 — a discarded call must not write to the active-session store."""
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
 
     class _SpyStore:
         def __init__(self) -> None:
@@ -123,6 +127,7 @@ async def test_discarded_call_records_no_latency_observation(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """S14 — a discarded terminal call must not record a webhook ingestion latency."""
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     call = _call("call-discarded-latency", "asst-discarded-latency")
 
     await client.post("/webhooks/vapi", json=_ended(call))
@@ -139,6 +144,7 @@ async def test_governed_and_discarded_traffic_never_creates_unregistered_agent(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """S15 — no webhook path ever creates an ``AgentStatus.UNREGISTERED`` agent."""
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     await insert_governed_agent(db_session, "asst-governed-s15")
     governed_call = _call("call-governed-s15", "asst-governed-s15")
     unknown_call = _call("call-unknown-s15", "asst-unknown-s15")

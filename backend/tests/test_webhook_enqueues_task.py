@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tests.conftest import insert_governed_agent
+from tests.conftest import VAPI_WEBHOOK_HEADERS, insert_governed_agent
 
 
 class _FakeTask:
@@ -16,6 +16,7 @@ class _FakeTask:
 async def test_webhook_enqueues_evidence_task_on_session_ended(
     client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     await insert_governed_agent(db_session, "asst-e")
     fake = _FakeTask()
     monkeypatch.setattr("src.adapters.rest.vapi.build_session_evidences", fake)
@@ -34,6 +35,7 @@ async def test_webhook_enqueues_evidence_task_on_session_ended(
 async def test_webhook_enqueues_evidence_task_on_session_failed(
     client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    client.headers.update(VAPI_WEBHOOK_HEADERS)
     await insert_governed_agent(db_session, "asst-fail")
     fake = _FakeTask()
     monkeypatch.setattr("src.adapters.rest.vapi.build_session_evidences", fake)
