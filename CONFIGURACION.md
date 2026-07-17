@@ -134,7 +134,7 @@ Verificación: abre <http://localhost:3000>.
 **Primer arranque (aún no hay credenciales).** El dashboard te redirige a `/setup` y te pide crear la cuenta de operador:
 
 1. Elige un usuario y una contraseña. La contraseña debe cumplir: mínimo 12 caracteres, y al menos una mayúscula, una minúscula, un número y un carácter especial (la pantalla te lo valida en vivo).
-2. Al confirmar, el backend genera y guarda automáticamente el `JWT_SECRET` de firma de sesión y el `VAPI_WEBHOOK_SECRET`, y te muestra **una sola vez** el valor del `VAPI_WEBHOOK_SECRET`. **Cópialo ahora**: lo necesitarás en el Paso 8 para el encabezado `x-vapi-secret` de Vapi. Si lo pierdes, tendrás que reprovisionarlo (borrar la fila de credenciales de la base de datos y repetir el setup).
+2. Al confirmar, el backend genera y guarda automáticamente el `JWT_SECRET` de firma de sesión y el `VAPI_WEBHOOK_SECRET`, y te muestra **una sola vez** el valor del `VAPI_WEBHOOK_SECRET`. **Cópialo ahora**: lo necesitarás en el Paso 8 para la credencial Bearer de Vapi. Si lo pierdes, tendrás que reprovisionarlo (borrar la fila de credenciales de la base de datos y repetir el setup).
 
 **Arranques siguientes (ya configurado).** El dashboard te redirige a `/login`; entra con el usuario y la contraseña que creaste en el setup. Tras iniciar sesión, el resto de páginas debe cargar sin errores en la consola del navegador.
 
@@ -152,17 +152,19 @@ Copia la URL `Forwarding` que muestra (formato `https://xxxx.ngrok-free.app`). E
 https://xxxx.ngrok-free.app/webhooks/vapi
 ```
 
-Configura la autenticación del webhook con una credencial personalizada:
+Configura la autenticación del webhook con una credencial Bearer Token:
 
 1. En **Authorization**, pulsa **Create Credential** o **Add New**. Vapi abrirá **Settings → Integrations → Server Configuration**.
 2. Pulsa **Add Custom Credential** y selecciona **Bearer Token** como tipo de autenticación.
 3. En **Credential Name**, escribe un nombre reconocible, por ejemplo `Vapi Webhook Secret`.
 4. En **Token**, pega el valor exacto de `VAPI_WEBHOOK_SECRET` que el dashboard te mostró en el Paso 7.
-5. Cambia **Header Name** de `Authorization` a **`X-Vapi-Secret`**.
-6. Desactiva **Include Bearer Prefix** y guarda la credencial con **Save**.
+5. Deja **Header Name** en `Authorization` (el valor por defecto).
+6. Activa **Include Bearer Prefix** y guarda la credencial con **Save**. Así Vapi enviará `Authorization: Bearer <secreto>`, que es exactamente lo que valida el backend.
 7. Vuelve al asistente → **Advanced → Webhook Server → Authorization** y selecciona la credencial que acabas de crear.
 
-> No configures el secreto como `Authorization: Bearer ...`: la API espera el encabezado `X-Vapi-Secret: <secreto>`. Los nombres de encabezado HTTP no distinguen mayúsculas de minúsculas, por lo que Vapi enviará el `x-vapi-secret` que valida el backend.
+> **La credencial se asigna por asistente.** El backend solo registra llamadas de asistentes que tengan esta credencial asignada: Vapi únicamente adjunta la cabecera `Authorization: Bearer ...` a esos asistentes. Un asistente registrado como agente pero **sin** la credencial asignada envía la petición sin esa cabecera, y el backend la rechaza con 401 antes de persistir nada. Para dejar de recibir llamadas de un agente, quítale la credencial en Vapi.
+
+> No configures el secreto como encabezado `X-Vapi-Secret`: la API espera `Authorization: Bearer <secreto>`.
 
 > La URL de ngrok gratuito cambia en cada arranque: si reinicias ngrok, actualiza el Server URL en Vapi.
 
@@ -214,7 +216,7 @@ REDIS_URL=${{<SERVICIO_REDIS>.REDIS_URL}}
 VAPI_API_KEY=<TU_API_KEY_DE_VAPI>
 ```
 
-No configures aquí el usuario/contraseña del dashboard ni los secretos de sesión y webhook: igual que en local, el usuario y la contraseña, el `JWT_SECRET` y el `VAPI_WEBHOOK_SECRET` **se crean y guardan automáticamente la primera vez que entras al dashboard** (Parte 1, Paso 7), y quedan persistidos en Postgres. Cuando hagas ese primer setup, copia el `VAPI_WEBHOOK_SECRET` que se muestra una vez y ponlo en Vapi como encabezado `x-vapi-secret` del Server URL (Paso 5).
+No configures aquí el usuario/contraseña del dashboard ni los secretos de sesión y webhook: igual que en local, el usuario y la contraseña, el `JWT_SECRET` y el `VAPI_WEBHOOK_SECRET` **se crean y guardan automáticamente la primera vez que entras al dashboard** (Parte 1, Paso 7), y quedan persistidos en Postgres. Cuando hagas ese primer setup, copia el `VAPI_WEBHOOK_SECRET` que se muestra una vez y ponlo en Vapi como credencial Bearer Token del Server URL (Paso 5).
 
 > Opcional: define `JWT_SECRET=<CADENA_ALEATORIA_LARGA>` (`openssl rand -hex 32`) solo si prefieres fijarlo tú en vez de dejar que se autogenere.
 
@@ -280,7 +282,7 @@ Después, abre el asistente en Vapi → **Advanced → Webhook Server** y config
 <BACKEND_URL>/webhooks/vapi
 ```
 
-Configura una credencial **Bearer Token** siguiendo los pasos de la Parte 1, Paso 8: usa el valor de `VAPI_WEBHOOK_SECRET` como **Token**, cambia **Header Name** a **`X-Vapi-Secret`**, desactiva **Include Bearer Prefix**, guarda la credencial y selecciónala en **Authorization**. Por último, en `<FRONTEND_URL>`, registra el asistente como agente gobernado, igual que en el paso 9 del entorno local.
+Configura una credencial **Bearer Token** siguiendo los pasos de la Parte 1, Paso 8: usa el valor de `VAPI_WEBHOOK_SECRET` como **Token**, deja **Header Name** en `Authorization`, activa **Include Bearer Prefix**, guarda la credencial y selecciónala en **Authorization** del asistente. Recuerda que la credencial se asigna por asistente: solo los que la tengan asignada enviarán llamadas que el backend acepte. Por último, en `<FRONTEND_URL>`, registra el asistente como agente gobernado, igual que en el paso 9 del entorno local.
 
 > No pegues literalmente `<SERVICIO_POSTGRES>` ni `<SERVICIO_REDIS>`. En **Variables → Add Reference**, selecciona la base de datos correspondiente y Railway insertará su nombre real automáticamente.
 
@@ -329,6 +331,6 @@ Notas:
 | Log: `webhook discarded for ungoverned assistant` | Asistente no registrado como agente gobernado | Registra el `assistantId` exacto en el dashboard |
 | Llamadas sin evidencias al cerrar | Worker Celery no está corriendo | Arranca el worker (paso 6) |
 | Vapi no envía webhooks en local | ngrok caído o Server URL desactualizada | Reinicia ngrok y actualiza el Server URL en Vapi |
-| Vapi recibe 401/403 al enviar webhooks | El encabezado `x-vapi-secret` no coincide con el `VAPI_WEBHOOK_SECRET` generado en el setup | Copia el valor exacto del setup al encabezado `x-vapi-secret` en Vapi |
+| Vapi recibe 401/403 al enviar webhooks | La credencial Bearer no coincide con el `VAPI_WEBHOOK_SECRET` del setup, o el asistente no la tiene asignada | Copia el valor exacto del setup como **Token** de la credencial Bearer (con **Include Bearer Prefix** activo) y asígnala al asistente |
 | Perdiste el `VAPI_WEBHOOK_SECRET` (solo se muestra una vez) | No se puede volver a mostrar | Borra la fila de la tabla `app_credentials` en Postgres y repite el `/setup` para reprovisionar credenciales y secretos |
 | El dashboard te lleva a `/setup` cuando ya lo configuraste | La tabla `app_credentials` está vacía (base de datos recreada) | Vuelve a crear la cuenta en `/setup`; para conservar sesiones tras recrear la DB, fija `JWT_SECRET` en el entorno |

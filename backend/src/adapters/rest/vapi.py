@@ -61,28 +61,32 @@ class VapiWebhook(BaseModel):
 async def vapi_webhook(
     webhook: VapiWebhook,
     session: SessionDep,
-    vapi_secret: Annotated[str | None, Header(alias="x-vapi-secret")] = None,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, str]:
     """Receive a Vapi webhook and persist it only for a governed agent (M2.7, R3).
 
-    A governed agent (registered, non-deleted) is resolved by ``assistantId``
-    BEFORE anything is persisted. Calls for an unknown or soft-deleted
-    assistant are discarded entirely: no ``raw_events`` row, no Session/Event,
-    no downstream Celery/Redis/latency side effects. For a governed agent, the
-    raw body is landed in ``raw_events`` (immutable landing) and, if the Vapi
-    type maps to a canonical event, promoted into the Session/Event trace,
-    exactly as before this change. Requests without a matching configured
-    secret are rejected before lookup or persistence.
+    Authentication uses the Vapi webhook Credential, which Vapi attaches as an
+    ``Authorization: Bearer <secret>`` header ONLY to assistants that have the
+    Credential assigned. A registered agent whose Credential is not assigned
+    sends no such header, so its calls are rejected here before any lookup or
+    persistence: no ``raw_events`` row, no Session/Event, no downstream
+    Celery/Redis/latency side effects.
+
+    For an authenticated request, a governed agent (registered, non-deleted) is
+    resolved by ``assistantId`` BEFORE anything is persisted; calls for an
+    unknown or soft-deleted assistant are still discarded. For a governed agent
+    the raw body is landed in ``raw_events`` (immutable landing) and, if the
+    Vapi type maps to a canonical event, promoted into the Session/Event trace.
     """
     configured_secret = await SecretResolver(CredentialsRepository(session)).webhook_secret()
     if (
         not configured_secret
-        or vapi_secret is None
-        or not hmac.compare_digest(vapi_secret, configured_secret)
+        or authorization is None
+        or not hmac.compare_digest(authorization, f"Bearer {configured_secret}")
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Vapi webhook secret",
+            detail="Invalid Vapi webhook credential",
         )
 
     event_type = webhook.message.type
