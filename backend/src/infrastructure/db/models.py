@@ -39,6 +39,7 @@ class AgentModel(Base):
     description: Mapped[str] = mapped_column(default="", nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    webhook_activated: Mapped[bool] = mapped_column(nullable=False, server_default=text("false"))
 
 
 class SessionModel(Base):

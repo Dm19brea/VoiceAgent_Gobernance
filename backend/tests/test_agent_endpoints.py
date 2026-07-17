@@ -24,6 +24,7 @@ async def test_register_creates_new_agent(client: AsyncClient) -> None:
     assert body["objective"] == "Confirmar"
     assert body["status"] == "active"
     assert "agent_id" in body
+    assert body["webhook_activated"] is False
 
 
 async def test_register_promotes_unregistered_agent(

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.config import settings
-from src.infrastructure.db.models import RawEvent
+from src.infrastructure.db.models import EventModel, RawEvent, SessionModel
 from src.infrastructure.repositories.credentials_repository import CredentialsRepository
 from tests.conftest import insert_governed_agent
 from tests.fakes import FAKE_HASH
@@ -120,6 +120,41 @@ async def test_vapi_webhook_rejects_when_no_secret_configured_anywhere(
 
     response = await client.post(
         "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "anything"}
+    )
+
+    assert response.status_code == 401
+    assert await db_session.scalar(select(RawEvent)) is None
+
+
+async def test_vapi_webhook_rejects_not_activated_agent_without_persistence(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: MonkeyPatch
+) -> None:
+    """Registered but not-activated agent: 403, and nothing is persisted."""
+    monkeypatch.setattr(settings, "vapi_webhook_secret", "expected-secret")
+    await insert_governed_agent(db_session, "asst-raw", webhook_activated=False)
+
+    response = await client.post(
+        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "expected-secret"}
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "El agente no tiene las credenciales configuradas"
+    assert await db_session.scalar(select(RawEvent)) is None
+    assert await db_session.scalar(select(SessionModel)) is None
+    assert await db_session.scalar(select(EventModel)) is None
+
+
+async def test_vapi_webhook_secret_gate_runs_before_activation_check(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: MonkeyPatch
+) -> None:
+    """Missing/invalid secret still yields 401 regardless of activation state,
+    and never leaks whether the agent is registered/activated.
+    """
+    monkeypatch.setattr(settings, "vapi_webhook_secret", "expected-secret")
+    await insert_governed_agent(db_session, "asst-raw", webhook_activated=False)
+
+    response = await client.post(
+        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "wrong-secret"}
     )
 
     assert response.status_code == 401

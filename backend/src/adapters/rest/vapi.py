@@ -68,11 +68,13 @@ async def vapi_webhook(
     A governed agent (registered, non-deleted) is resolved by ``assistantId``
     BEFORE anything is persisted. Calls for an unknown or soft-deleted
     assistant are discarded entirely: no ``raw_events`` row, no Session/Event,
-    no downstream Celery/Redis/latency side effects. For a governed agent, the
-    raw body is landed in ``raw_events`` (immutable landing) and, if the Vapi
-    type maps to a canonical event, promoted into the Session/Event trace,
-    exactly as before this change. Requests without a matching configured
-    secret are rejected before lookup or persistence.
+    no downstream Celery/Redis/latency side effects. A registered agent whose
+    ``webhook_activated`` flag is ``False`` is rejected with 403 and, likewise,
+    nothing is persisted. For a governed and activated agent, the raw body is
+    landed in ``raw_events`` (immutable landing) and, if the Vapi type maps to
+    a canonical event, promoted into the Session/Event trace, exactly as
+    before this change. Requests without a matching configured secret are
+    rejected before lookup, activation check, or persistence.
     """
     configured_secret = await SecretResolver(CredentialsRepository(session)).webhook_secret()
     if (
@@ -101,6 +103,17 @@ async def vapi_webhook(
             assistant_id,
         )
         return {"status": "ignored"}
+
+    if not agent.webhook_activated:
+        logger.info(
+            "Vapi webhook rejected for not-activated assistant: type={} assistant_id={}",
+            event_type,
+            assistant_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El agente no tiene las credenciales configuradas",
+        )
 
     canonical_event: Event | None = None
     command: IngestEventCommand | None = None
