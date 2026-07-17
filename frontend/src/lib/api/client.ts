@@ -203,3 +203,21 @@ export async function deleteAgent(agentId: string): Promise<void> {
     throw await toApiError(response, `/agents/${agentId}`);
   }
 }
+
+export async function activateAgent(agentId: string): Promise<Agent> {
+  const path = `/agents/${agentId}/activate`;
+  const response = await request(path, { method: "POST" });
+  if (!response.ok) {
+    throw await toApiError(response, path);
+  }
+  return (await response.json()) as Agent;
+}
+
+export async function deactivateAgent(agentId: string): Promise<Agent> {
+  const path = `/agents/${agentId}/deactivate`;
+  const response = await request(path, { method: "POST" });
+  if (!response.ok) {
+    throw await toApiError(response, path);
+  }
+  return (await response.json()) as Agent;
+}

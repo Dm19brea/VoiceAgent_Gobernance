@@ -48,6 +48,7 @@ export interface Agent {
   objective: string;
   description: string;
   status: string;
+  webhook_activated: boolean;
 }
 
 export interface RegisterAgentInput {

@@ -2,6 +2,8 @@ import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  activateAgent,
+  deactivateAgent,
   deleteAgent,
   getAgentSessions,
   getAgents,
@@ -208,6 +210,72 @@ describe("deleteAgent", () => {
     server.use(http.delete(`${apiBaseUrl}/agents/:id`, () => new HttpResponse(null, { status: 404 })));
 
     await expect(deleteAgent("missing")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("activateAgent", () => {
+  it("posts to the agent's activate endpoint and returns the updated agent", async () => {
+    let receivedMethod: string | undefined;
+    server.use(
+      http.post(`${apiBaseUrl}/agents/:id/activate`, ({ request }) => {
+        receivedMethod = request.method;
+        return HttpResponse.json({
+          agent_id: "a-1",
+          vapi_assistant_id: "va-1",
+          name: "Sales Agent",
+          objective: "Book demos",
+          description: "",
+          status: "ACTIVE",
+          webhook_activated: true,
+        });
+      }),
+    );
+
+    const agent = await activateAgent("a-1");
+
+    expect(receivedMethod).toBe("POST");
+    expect(agent.webhook_activated).toBe(true);
+  });
+
+  it("throws an ApiError with status 404 when the agent is absent", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/agents/:id/activate`, () => new HttpResponse(null, { status: 404 })),
+    );
+
+    await expect(activateAgent("missing")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("deactivateAgent", () => {
+  it("posts to the agent's deactivate endpoint and returns the updated agent", async () => {
+    let receivedMethod: string | undefined;
+    server.use(
+      http.post(`${apiBaseUrl}/agents/:id/deactivate`, ({ request }) => {
+        receivedMethod = request.method;
+        return HttpResponse.json({
+          agent_id: "a-1",
+          vapi_assistant_id: "va-1",
+          name: "Sales Agent",
+          objective: "Book demos",
+          description: "",
+          status: "ACTIVE",
+          webhook_activated: false,
+        });
+      }),
+    );
+
+    const agent = await deactivateAgent("a-1");
+
+    expect(receivedMethod).toBe("POST");
+    expect(agent.webhook_activated).toBe(false);
+  });
+
+  it("throws an ApiError with status 404 when the agent is absent", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/agents/:id/deactivate`, () => new HttpResponse(null, { status: 404 })),
+    );
+
+    await expect(deactivateAgent("missing")).rejects.toMatchObject({ status: 404 });
   });
 });
 
