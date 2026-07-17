@@ -146,13 +146,23 @@ Vapi está en la nube y no puede llegar a `localhost`. **Nueva terminal**:
 ngrok http 8000
 ```
 
-Copia la URL `Forwarding` que muestra (formato `https://xxxx.ngrok-free.app`). En el dashboard de Vapi, en tu asistente → **Server URL**, pon:
+Copia la URL `Forwarding` que muestra (formato `https://xxxx.ngrok-free.app`). En el dashboard de Vapi, abre tu asistente → **Advanced → Webhook Server** y, en **Server URL**, pon:
 
 ```
 https://xxxx.ngrok-free.app/webhooks/vapi
 ```
 
-En esa misma pantalla de Vapi, añade el encabezado de servidor **`x-vapi-secret`** con el valor de `VAPI_WEBHOOK_SECRET` que el dashboard te mostró en el Paso 7. La API rechaza cualquier webhook cuyo `x-vapi-secret` no coincida.
+Configura la autenticación del webhook con una credencial personalizada:
+
+1. En **Authorization**, pulsa **Create Credential** o **Add New**. Vapi abrirá **Settings → Integrations → Server Configuration**.
+2. Pulsa **Add Custom Credential** y selecciona **Bearer Token** como tipo de autenticación.
+3. En **Credential Name**, escribe un nombre reconocible, por ejemplo `Vapi Webhook Secret`.
+4. En **Token**, pega el valor exacto de `VAPI_WEBHOOK_SECRET` que el dashboard te mostró en el Paso 7.
+5. Cambia **Header Name** de `Authorization` a **`X-Vapi-Secret`**.
+6. Desactiva **Include Bearer Prefix** y guarda la credencial con **Save**.
+7. Vuelve al asistente → **Advanced → Webhook Server → Authorization** y selecciona la credencial que acabas de crear.
+
+> No configures el secreto como `Authorization: Bearer ...`: la API espera el encabezado `X-Vapi-Secret: <secreto>`. Los nombres de encabezado HTTP no distinguen mayúsculas de minúsculas, por lo que Vapi enviará el `x-vapi-secret` que valida el backend.
 
 > La URL de ngrok gratuito cambia en cada arranque: si reinicias ngrok, actualiza el Server URL en Vapi.
 
@@ -264,13 +274,13 @@ CORS_ORIGINS=<FRONTEND_URL>
 
 Redespliega el backend. Abre `<FRONTEND_URL>`: en el primer acceso el dashboard te lleva a `/setup` para crear la cuenta de operador y te muestra una vez el `VAPI_WEBHOOK_SECRET` (Parte 1, Paso 7). Cópialo.
 
-Después, configura en Vapi la **Server URL** del asistente:
+Después, abre el asistente en Vapi → **Advanced → Webhook Server** y configura la **Server URL**:
 
 ```text
 <BACKEND_URL>/webhooks/vapi
 ```
 
-y añade el encabezado **`x-vapi-secret`** con ese `VAPI_WEBHOOK_SECRET`. Por último, en `<FRONTEND_URL>`, registra el asistente como agente gobernado, igual que en el paso 9 del entorno local.
+Configura una credencial **Bearer Token** siguiendo los pasos de la Parte 1, Paso 8: usa el valor de `VAPI_WEBHOOK_SECRET` como **Token**, cambia **Header Name** a **`X-Vapi-Secret`**, desactiva **Include Bearer Prefix**, guarda la credencial y selecciónala en **Authorization**. Por último, en `<FRONTEND_URL>`, registra el asistente como agente gobernado, igual que en el paso 9 del entorno local.
 
 > No pegues literalmente `<SERVICIO_POSTGRES>` ni `<SERVICIO_REDIS>`. En **Variables → Add Reference**, selecciona la base de datos correspondiente y Railway insertará su nombre real automáticamente.
 
