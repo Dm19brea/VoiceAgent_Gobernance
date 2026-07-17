@@ -10,6 +10,7 @@ export const fixtureAgents: Agent[] = [
     objective: "Exercise report navigation",
     description: "Deterministic Playwright fixture",
     status: "active",
+    webhook_activated: true,
   },
 ];
 

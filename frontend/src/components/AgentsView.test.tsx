@@ -16,6 +16,7 @@ const AGENT_ONE = {
   objective: "Book demos",
   description: "Handles inbound sales calls",
   status: "ACTIVE",
+  webhook_activated: true,
 };
 
 const AGENT_TWO = {
@@ -25,6 +26,7 @@ const AGENT_TWO = {
   objective: "Resolve tickets",
   description: "",
   status: "UNREGISTERED",
+  webhook_activated: false,
 };
 
 describe("AgentsView", () => {
@@ -176,5 +178,46 @@ describe("AgentsView", () => {
     expect(screen.getByText("Sales Agent")).toBeInTheDocument();
 
     confirmSpy.mockRestore();
+  });
+
+  it("toggles agent activation and reflects the updated state", async () => {
+    const user = userEvent.setup();
+    let activateCalledWithId: string | undefined;
+    let listCallCount = 0;
+    server.use(
+      http.get(`${apiBaseUrl}/agents`, () => {
+        listCallCount += 1;
+        return HttpResponse.json([
+          { ...AGENT_TWO, webhook_activated: listCallCount > 1 },
+        ]);
+      }),
+      http.post(`${apiBaseUrl}/agents/:id/activate`, ({ params }) => {
+        activateCalledWithId = params.id as string;
+        return HttpResponse.json({ ...AGENT_TWO, webhook_activated: true });
+      }),
+    );
+
+    renderWithQuery(<AgentsView />);
+    await screen.findByText("Support Agent");
+
+    await user.click(screen.getByRole("button", { name: /^activate$/i }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /deactivate/i })).toBeInTheDocument());
+    expect(activateCalledWithId).toBe("a-2");
+  });
+
+  it("surfaces an error when the activation toggle fails", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${apiBaseUrl}/agents`, () => HttpResponse.json([AGENT_TWO])),
+      http.post(`${apiBaseUrl}/agents/:id/activate`, () => new HttpResponse(null, { status: 404 })),
+    );
+
+    renderWithQuery(<AgentsView />);
+    await screen.findByText("Support Agent");
+
+    await user.click(screen.getByRole("button", { name: /^activate$/i }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
   });
 });
