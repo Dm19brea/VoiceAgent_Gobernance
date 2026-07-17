@@ -223,7 +223,7 @@ Railway ejecuta cinco servicios: **PostgreSQL, Redis, API, worker y frontend**. 
 
 ### Ingesta y trazabilidad
 
-- Autenticación del webhook mediante la credencial `Authorization: Bearer <VAPI_WEBHOOK_SECRET>`, asignada por asistente en Vapi.
+- Autenticación del webhook mediante la credencial `Authorization: Bearer <VAPI_WEBHOOK_SECRET>` (autentica el origen: la organización de Vapi, no al asistente individual — ver [nota sobre el fallback de credenciales](#nota-el-bearer-autentica-el-origen-no-al-asistente)).
 - Conservación del payload original en PostgreSQL antes de su interpretación.
 - Traducción de eventos Vapi a una taxonomía canónica independiente del proveedor.
 - Correlación de una llamada con una única sesión y secuencias de eventos ordenadas.
@@ -263,6 +263,18 @@ Railway ejecuta cinco servicios: **PostgreSQL, Redis, API, worker y frontend**. 
 | Secretos locales | Archivos `.env` ignorados por Git; solo `.env.example` se versiona |
 
 `JWT_SECRET` y `VAPI_WEBHOOK_SECRET` admiten una sobrescritura explícita por entorno, pero por defecto se generan durante `/setup`. El secreto del webhook se muestra una sola vez: sigue las instrucciones de **[CONFIGURACION.md](./CONFIGURACION.md#paso-8--exponer-la-api-a-vapi-túnel)** para guardarlo en Vapi con el encabezado correcto.
+
+### Nota: el Bearer autentica el origen, no al asistente
+
+La credencial del webhook de Vapi autentica el **origen** de la petición (tu organización de Vapi), **no** al asistente concreto. Esto es clave para entender qué puede y qué no puede hacer la validación `Authorization: Bearer`.
+
+**Credential Fallback.** En el selector de autorización de un asistente, la opción "No authentication" **no** implica que su webhook llegue sin autenticar. Mientras la organización tenga una **credencial de servidor predeterminada** ("Default Server Credential"), Vapi la aplica por *fallback* a todo asistente que no tenga una credencial propia seleccionada. En ese caso Vapi **sí** adjunta la cabecera de esa credencial global — normalmente `Authorization: Bearer <token>` — y el backend la valida como correcta.
+
+**Configuración confirmada de esta instalación.** La organización tiene una única credencial de servidor, `Vapi Webhook Secret`, de tipo **Bearer Token**, cabecera `Authorization`, con el prefijo `Bearer` activado. Por tanto, todo asistente sin credencial propia hereda ese mismo `Authorization: Bearer <VAPI_WEBHOOK_SECRET>`. El `VAPI_WEBHOOK_SECRET` del backend debe contener exactamente ese token.
+
+**Implicación.** Como el mismo secreto viaja para todos los asistentes de la organización, el Bearer **no puede distinguir por sí solo qué asistente debe registrarse**: solo demuestra que la llamada proviene de la cuenta de Vapi. El gate por-asistente NO es implementable únicamente con la validación del Bearer.
+
+**Cómo se decide hoy qué se registra.** El único filtro por-asistente vigente es la comprobación de gobernanza: el backend resuelve el `assistantId` del payload y **descarta** la llamada si el asistente no está registrado como agente gobernado (o está dado de baja). Para gatear un asistente que sí quieres tener registrado pero no trackear, hay dos vías: (a) asignar/quitar credenciales explícitamente por asistente en Vapi **y desactivar el fallback de la organización**, o (b) introducir un gate propio en la plataforma (un flag por-agente comprobado tras resolver el `assistantId`).
 
 ## Calidad y validación
 
