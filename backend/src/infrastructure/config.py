@@ -26,8 +26,6 @@ class Settings(BaseSettings):
     vapi_timeout_seconds: float = 10.0
     vapi_webhook_secret: str = ""
     jwt_secret: str = ""
-    dashboard_username: str = ""
-    dashboard_password_hash: str = ""
     auth_cookie_secure: bool | None = None
 
     @property

@@ -1,9 +1,12 @@
 """CredentialsRepository: singleton get/create/bump_epoch (first-run-auth-setup)."""
 
+import asyncio
+
 import pytest
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from src.infrastructure.config import settings
 from src.infrastructure.repositories.credentials_repository import CredentialsRepository
 from tests.fakes import FAKE_HASH
 
@@ -50,6 +53,45 @@ class TestCredentialsRepository:
                 jwt_secret="other-jwt-secret",
                 vapi_webhook_secret="other-webhook-secret",
             )
+
+    async def test_concurrent_create_persists_exactly_one_row(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Two racing setups resolve to a single row via the singleton constraint.
+
+        Uses two independent sessions (the request fixture shares one session,
+        which cannot model real concurrency) against the same test database.
+        Exactly one insert commits; the loser fails with ``IntegrityError``.
+        """
+        engine = create_async_engine(settings.async_database_url)
+        maker = async_sessionmaker(engine, expire_on_commit=False)
+
+        async def attempt(username: str, jwt: str, webhook: str) -> None:
+            async with maker() as session:
+                await CredentialsRepository(session).create(
+                    username=username,
+                    password_hash=FAKE_HASH,
+                    jwt_secret=jwt,
+                    vapi_webhook_secret=webhook,
+                )
+                await session.commit()
+
+        try:
+            results = await asyncio.gather(
+                attempt("first", "jwt-a", "webhook-a"),
+                attempt("second", "jwt-b", "webhook-b"),
+                return_exceptions=True,
+            )
+        finally:
+            await engine.dispose()
+
+        failures = [result for result in results if isinstance(result, BaseException)]
+        assert len(failures) == 1
+        assert isinstance(failures[0], IntegrityError)
+
+        row = await CredentialsRepository(db_session).get()
+        assert row is not None
+        assert row.username in {"first", "second"}
 
     async def test_bump_epoch_increments(self, db_session: AsyncSession) -> None:
         repository = CredentialsRepository(db_session)
