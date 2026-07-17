@@ -268,11 +268,14 @@ Genera un dominio público y guarda la URL como `<FRONTEND_URL>`. Si cambias `NE
 
 ### Paso 5 — Autorizar el frontend y conectar Vapi
 
-Vuelve al servicio backend y añade esta variable:
+Vuelve al servicio backend y añade estas variables:
 
 ```text
 CORS_ORIGINS=<FRONTEND_URL>
+AUTH_COOKIE_SECURE=true
 ```
+
+> **Por qué `AUTH_COOKIE_SECURE=true` en Railway.** El frontend y el backend viven en dominios distintos (`*.up.railway.app`), así que la cookie de refresco de sesión es *cross-site*. El navegador solo la envía en peticiones cross-site si está marcada como `SameSite=None; Secure`. El backend deriva ese flag del esquema de la petición, pero detrás del proxy de Railway lo ve como `http` y por defecto marcaría la cookie como `SameSite=Lax`, que el navegador **no** manda cross-site. El resultado es que la renovación silenciosa (`/auth/refresh`) falla y el dashboard **te desloguea al expirar el access token (cada 15 min)**. `AUTH_COOKIE_SECURE=true` fuerza `SameSite=None; Secure` y la sesión se renueva sola hasta el tope absoluto de 8 h. En local (mismo origen, `http://localhost`) **no** se define: la cookie `SameSite=Lax` funciona y `Secure` sería rechazada sin https.
 
 Redespliega el backend. Abre `<FRONTEND_URL>`: en el primer acceso el dashboard te lleva a `/setup` para crear la cuenta de operador y te muestra una vez el `VAPI_WEBHOOK_SECRET` (Parte 1, Paso 7). Cópialo.
 
@@ -303,6 +306,7 @@ Configura una credencial **Bearer Token** siguiendo los pasos de la Parte 1, Pas
 | `DATABASE_URL` | API, worker | `postgresql+asyncpg://governance:governance@localhost:5432/governance` | `${{Postgres.DATABASE_URL}}` |
 | `REDIS_URL` | API, worker | `redis://localhost:6379/0` | `${{Redis.REDIS_URL}}` |
 | `CORS_ORIGINS` | API | `http://localhost:3000` | URL pública del frontend |
+| `AUTH_COOKIE_SECURE` | API | no definir (mismo origen, http) | `true` (front/back en dominios distintos; fuerza `SameSite=None; Secure` en la cookie de refresco) |
 | `VAPI_API_KEY` | API, worker | secreto | secreto |
 | `VAPI_BASE_URL` | API, worker | `https://api.vapi.ai` (defecto) | igual |
 | `VAPI_TIMEOUT_SECONDS` | API, worker | `10.0` (defecto) | igual |
@@ -334,3 +338,4 @@ Notas:
 | Vapi recibe 401/403 al enviar webhooks | La credencial Bearer no coincide con el `VAPI_WEBHOOK_SECRET` del setup, o el asistente no la tiene asignada | Copia el valor exacto del setup como **Token** de la credencial Bearer (con **Include Bearer Prefix** activo) y asígnala al asistente |
 | Perdiste el `VAPI_WEBHOOK_SECRET` (solo se muestra una vez) | No se puede volver a mostrar | Borra la fila de la tabla `app_credentials` en Postgres y repite el `/setup` para reprovisionar credenciales y secretos |
 | El dashboard te lleva a `/setup` cuando ya lo configuraste | La tabla `app_credentials` está vacía (base de datos recreada) | Vuelve a crear la cuenta en `/setup`; para conservar sesiones tras recrear la DB, fija `JWT_SECRET` en el entorno |
+| El dashboard te desloguea cada ~15 min en Railway | La cookie de refresco es cross-site (front/back en dominios distintos) y sin `AUTH_COOKIE_SECURE=true` sale como `SameSite=Lax`, que el navegador no manda cross-site: el `/auth/refresh` falla al expirar el access token | Define `AUTH_COOKIE_SECURE=true` en el servicio backend y redespliega (Parte 2, Paso 5) |
