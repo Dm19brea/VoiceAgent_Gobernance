@@ -1,9 +1,10 @@
+import hmac
 from datetime import UTC, datetime
 from time import perf_counter
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from src.application.use_cases.record_system_observation import RecordSystemObse
 from src.domain.enums import EventType, Source
 from src.domain.event import Event
 from src.infrastructure.celery.tasks import build_session_evidences
+from src.infrastructure.config import settings
 from src.infrastructure.db.models import RawEvent
 from src.infrastructure.db.session import async_session_maker, get_session
 from src.infrastructure.redis.active_sessions import (
@@ -55,7 +57,11 @@ class VapiWebhook(BaseModel):
 
 
 @router.post("/webhooks/vapi", status_code=200)
-async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, str]:
+async def vapi_webhook(
+    webhook: VapiWebhook,
+    session: SessionDep,
+    vapi_secret: Annotated[str | None, Header(alias="x-vapi-secret")] = None,
+) -> dict[str, str]:
     """Receive a Vapi webhook and persist it only for a governed agent (M2.7, R3).
 
     A governed agent (registered, non-deleted) is resolved by ``assistantId``
@@ -64,9 +70,20 @@ async def vapi_webhook(webhook: VapiWebhook, session: SessionDep) -> dict[str, s
     no downstream Celery/Redis/latency side effects. For a governed agent, the
     raw body is landed in ``raw_events`` (immutable landing) and, if the Vapi
     type maps to a canonical event, promoted into the Session/Event trace,
-    exactly as before this change. Always returns 200, as Vapi ignores other
-    status codes.
+    exactly as before this change. Requests without a matching configured
+    secret are rejected before lookup or persistence.
     """
+    configured_secret = settings.vapi_webhook_secret
+    if (
+        not configured_secret
+        or vapi_secret is None
+        or not hmac.compare_digest(vapi_secret, configured_secret)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Vapi webhook secret",
+        )
+
     event_type = webhook.message.type
     raw = webhook.model_dump(mode="json")
     receipt_started = perf_counter()

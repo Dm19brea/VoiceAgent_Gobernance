@@ -74,7 +74,7 @@ Después abre `backend/.env` y rellena las **dos variables vacías de la plantil
 - `VAPI_API_KEY`: dashboard de Vapi → **Settings → API Keys**.
 - `OPENROUTER_API_KEY`: <https://openrouter.ai/keys> (la usa el juez LLM del scoring).
 
-Añade además estas tres variables (no vienen en la plantilla porque protegen el login del dashboard, S2 de este cambio):
+Añade además estas cuatro variables (no vienen en la plantilla porque protegen el acceso al dashboard y la recepción de webhooks):
 
 - `JWT_SECRET`: cadena aleatoria larga (32+ caracteres) — firma los tokens de sesión del dashboard. Genera una con `openssl rand -hex 32`.
 - `DASHBOARD_USERNAME`: el usuario con el que iniciarás sesión en el dashboard (p. ej. `admin`).
@@ -86,6 +86,8 @@ Añade además estas tres variables (no vienen en la plantilla porque protegen e
   ```
 
   Copia la salida completa (empieza por `$2b$...`) como valor de `DASHBOARD_PASSWORD_HASH`.
+
+- `VAPI_WEBHOOK_SECRET`: secreto compartido aleatorio para validar los webhooks entrantes. Configura exactamente el mismo valor en el encabezado `x-vapi-secret` de la URL del servidor en el panel de Vapi.
 
 El resto de valores (Postgres, Redis, CORS, URLs base) ya vienen configurados para el `docker-compose.yml` de este repo — no los toques.
 
@@ -205,9 +207,10 @@ VAPI_API_KEY=<TU_API_KEY_DE_VAPI>
 JWT_SECRET=<CADENA_ALEATORIA_LARGA>
 DASHBOARD_USERNAME=<TU_USUARIO_DE_DASHBOARD>
 DASHBOARD_PASSWORD_HASH=<HASH_BCRYPT_DE_TU_CONTRASENA>
+VAPI_WEBHOOK_SECRET=<SECRETO_COMPARTIDO_ALEATORIO>
 ```
 
-`JWT_SECRET`, `DASHBOARD_USERNAME` y `DASHBOARD_PASSWORD_HASH` se generan igual que en el entorno local (ver Parte 1, Paso 3).
+`JWT_SECRET`, `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD_HASH` y `VAPI_WEBHOOK_SECRET` se generan y gestionan igual que en el entorno local (ver Parte 1, Paso 3). En Vapi, configura `VAPI_WEBHOOK_SECRET` como el valor del encabezado `x-vapi-secret` de la URL del servidor.
 
 Después, ve a **Settings → Networking → Generate Domain** y guarda la URL como `<BACKEND_URL>`.
 
@@ -296,6 +299,7 @@ Por último, abre `<FRONTEND_URL>` y registra el asistente como agente gobernado
 | `JWT_SECRET` | API | secreto (32+ caracteres) | secreto (32+ caracteres) |
 | `DASHBOARD_USERNAME` | API | tu usuario de dashboard | tu usuario de dashboard |
 | `DASHBOARD_PASSWORD_HASH` | API | hash bcrypt de tu contraseña | hash bcrypt de tu contraseña |
+| `VAPI_WEBHOOK_SECRET` | API | secreto compartido con Vapi | secreto compartido con Vapi |
 | `OPENROUTER_API_KEY` | API, worker | secreto | secreto |
 | `OPENROUTER_BASE_URL` | API, worker | `https://openrouter.ai/api/v1` (defecto) | igual |
 | `OPENROUTER_TIMEOUT_SECONDS` | API, worker | `10.0` (defecto) | igual |

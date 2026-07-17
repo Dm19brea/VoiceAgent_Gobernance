@@ -35,6 +35,9 @@ from src.infrastructure.repositories.governance_repository import SqlAlchemyGove
 from src.main import app
 from tests.fakes import FakeAssistantDirectory
 
+VAPI_WEBHOOK_SECRET = "test-vapi-webhook-secret"
+VAPI_WEBHOOK_HEADERS = {"x-vapi-secret": VAPI_WEBHOOK_SECRET}
+
 
 @pytest.fixture(autouse=True)
 def _offline_assistant_directory() -> Generator[None, None, None]:
@@ -59,6 +62,12 @@ def _bypass_dashboard_auth() -> Generator[None, None, None]:
     app.dependency_overrides[require_auth] = lambda: "test-user"
     yield
     app.dependency_overrides.pop(require_auth, None)
+
+
+@pytest.fixture(autouse=True)
+def _configure_vapi_webhook_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configure the secret that legitimate webhook callers must send."""
+    monkeypatch.setattr(settings, "vapi_webhook_secret", VAPI_WEBHOOK_SECRET)
 
 
 @pytest.fixture(autouse=True)
