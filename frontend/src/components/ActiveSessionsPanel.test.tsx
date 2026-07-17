@@ -34,6 +34,18 @@ describe("ActiveSessionsPanel", () => {
     expect(screen.getByText(/no active sessions/i)).toBeInTheDocument();
   });
 
+  it("exposes the empty state as a status region for assistive tech", () => {
+    render(<ActiveSessionsPanel sessions={[]} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(/no active sessions/i);
+  });
+
+  it("does not render a status region when sessions are present", () => {
+    render(<ActiveSessionsPanel sessions={sessions} />);
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   describe("speaking indicator", () => {
     it('shows "Agent speaking" when speaking_role is agent', () => {
       render(<ActiveSessionsPanel sessions={[makeSession({ speaking_role: "agent" })]} />);

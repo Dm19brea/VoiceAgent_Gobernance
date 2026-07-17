@@ -1,5 +1,7 @@
 import type { Agent } from "@/lib/api/types";
 
+import { StatusBadge } from "./ui/StatusBadge";
+
 const HEADERS = ["Name", "Objective", "Vapi assistant", "Status", ""];
 
 export function AgentsTable({
@@ -32,17 +34,19 @@ export function AgentsTable({
         {agents.map((agent) => (
           <tr
             key={agent.agent_id}
-            className="border-b border-neutral-100 dark:border-neutral-900"
+            className="border-b border-neutral-100 transition-colors hover:bg-surface-muted focus-within:bg-surface-muted dark:border-neutral-900"
           >
             <td className="py-2 pr-4">{agent.name}</td>
             <td className="py-2 pr-4">{agent.objective}</td>
             <td className="py-2 pr-4 font-mono text-xs">{agent.vapi_assistant_id}</td>
-            <td className="py-2 pr-4">{agent.status}</td>
+            <td className="py-2 pr-4">
+              <StatusBadge status={agent.status} />
+            </td>
             <td className="py-2 pr-4">
               <button
                 type="button"
                 onClick={() => onEdit(agent)}
-                className="text-blue-600 hover:underline dark:text-blue-400"
+                className="rounded text-blue-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current dark:text-blue-400"
               >
                 Edit
               </button>
@@ -50,7 +54,7 @@ export function AgentsTable({
                 type="button"
                 onClick={() => onDelete(agent)}
                 disabled={deletingAgentId === agent.agent_id}
-                className="ml-3 text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
+                className="ml-3 rounded text-red-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current disabled:opacity-50 dark:text-red-400"
               >
                 Delete
               </button>

@@ -24,6 +24,20 @@ describe("ReportScores", () => {
     expect(screen.getByText(/passed/i)).toBeInTheDocument();
   });
 
+  it("renders the result via the shared StatusBadge", () => {
+    render(<ReportScores report={report} />);
+
+    const badge = screen.getByTestId("status-badge");
+    expect(badge).toHaveTextContent("passed");
+  });
+
+  it("renders a failed result via StatusBadge with the raw status text", () => {
+    render(<ReportScores report={{ ...report, result: "failed" }} />);
+
+    const badge = screen.getByTestId("status-badge");
+    expect(badge).toHaveTextContent("failed");
+  });
+
   it("renders each in-scope dimension score with two decimals", () => {
     render(<ReportScores report={report} />);
 

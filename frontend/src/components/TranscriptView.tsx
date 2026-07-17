@@ -4,6 +4,8 @@ import { useSessionEvents } from "@/lib/queries/useSessionEvents";
 import { buildTranscript } from "@/lib/transcript/buildTranscript";
 import type { TranscriptTurn } from "@/lib/api/types";
 
+import { Spinner } from "./ui/Spinner";
+
 function formatSilenceSeconds(durationMs: number): string {
   return (durationMs / 1000).toFixed(1);
 }
@@ -21,18 +23,18 @@ function TurnBubble({ turn }: Readonly<{ turn: TranscriptTurn }>) {
   return (
     <div
       data-testid="transcript-turn"
-      className={`max-w-[80%] rounded-lg border p-3 text-sm ${
+      className={`animate-[var(--animate-fade-in)] max-w-[80%] rounded-[var(--radius-card)] border p-3 text-sm shadow-[var(--shadow-card)] transition-shadow hover:shadow-md ${
         isAssistant
-          ? "self-start border-neutral-200 bg-neutral-50"
-          : "self-end border-blue-200 bg-blue-50"
+          ? "self-start border-border bg-surface-muted"
+          : "self-end border-brand/30 bg-accent/10"
       }`}
     >
-      <div className="mb-1 flex items-center gap-2 text-xs font-medium text-neutral-500">
+      <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted">
         <span>{isAssistant ? "Agente" : "Usuario"}</span>
         {turn.interrupted && (
           <span
             data-testid="interruption-indicator"
-            className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800"
+            className="rounded-[var(--radius-badge)] bg-warning-surface px-2 py-0.5 text-warning-fg"
           >
             Interrupción
           </span>
@@ -47,7 +49,12 @@ export function TranscriptView({ sessionId }: Readonly<{ sessionId: string }>) {
   const { data, isPending, isError } = useSessionEvents(sessionId);
 
   if (isPending) {
-    return <p className="text-sm text-neutral-500">Cargando transcripción…</p>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-neutral-500">
+        <Spinner size="sm" label="Cargando transcripción" />
+        <span>Cargando transcripción…</span>
+      </div>
+    );
   }
 
   if (isError) {

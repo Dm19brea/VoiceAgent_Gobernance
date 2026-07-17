@@ -7,6 +7,7 @@ import { useAgents, useDeleteAgent, useRegisterAgent } from "@/lib/queries/useAg
 
 import { AgentForm, type AgentFormValues } from "./AgentForm";
 import { AgentsTable } from "./AgentsTable";
+import { Spinner } from "./ui/Spinner";
 
 const EMPTY_FORM: AgentFormValues = {
   vapi_assistant_id: "",
@@ -53,7 +54,12 @@ export function AgentsView() {
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Agents</h2>
         <div className="mt-4">
-          {isPending && <p className="text-sm text-neutral-500">Loading agents…</p>}
+          {isPending && (
+            <div className="flex items-center gap-2 text-sm text-neutral-500">
+              <Spinner size="sm" label="Loading agents" />
+              <span>Loading agents…</span>
+            </div>
+          )}
           {isError && (
             <p role="alert" className="text-sm text-red-600">
               Couldn&apos;t load agents.
