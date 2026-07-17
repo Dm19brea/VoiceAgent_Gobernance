@@ -46,7 +46,7 @@ class TestCredentialsRepository:
         with pytest.raises(IntegrityError):
             await repository.create(
                 username="someone-else",
-                password_hash="other-hash",
+                password_hash=FAKE_HASH,
                 jwt_secret="other-jwt-secret",
                 vapi_webhook_secret="other-webhook-secret",
             )
