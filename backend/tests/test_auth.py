@@ -11,7 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.adapters.rest.auth import (
     ACCESS_TOKEN_TTL,
     JWT_ALGORITHM,
+    _issue_access_token,
+    _issue_refresh_token,
     require_auth,
+    verify_access_token,
 )
 from src.infrastructure.config import settings
 from src.infrastructure.repositories.credentials_repository import CredentialsRepository
@@ -168,7 +171,7 @@ class TestAuthRefresh:
         assert response.cookies.get("refresh_token") is not None
 
     async def test_refresh_past_inactivity_window_rejected(
-        self, client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+        self, client: AsyncClient, db_session: AsyncSession
     ) -> None:
         await _seed_credentials(db_session)
         now = datetime.now(UTC)
@@ -333,3 +336,51 @@ class TestTokenEpoch:
 
     def test_access_token_expiry_matches_fifteen_minutes(self) -> None:
         assert timedelta(minutes=15) == ACCESS_TOKEN_TTL
+
+
+class TestVerifyAccessToken:
+    """RED-first unit coverage for the shared `verify_access_token` helper."""
+
+    async def test_valid_access_token_returns_subject(self, db_session: AsyncSession) -> None:
+        await _seed_credentials(db_session)
+        row = await CredentialsRepository(db_session).get()
+        assert row is not None
+        token = _issue_access_token(_USERNAME, row.session_epoch, row.jwt_secret)
+
+        subject = await verify_access_token(token, db_session)
+
+        assert subject == _USERNAME
+
+    async def test_no_credentials_row_raises(self, db_session: AsyncSession) -> None:
+        token = _issue_access_token(_USERNAME, 0, "test-jwt-secret")
+
+        with pytest.raises(jwt.InvalidTokenError):
+            await verify_access_token(token, db_session)
+
+    async def test_refresh_type_token_raises(self, db_session: AsyncSession) -> None:
+        await _seed_credentials(db_session)
+        row = await CredentialsRepository(db_session).get()
+        assert row is not None
+        token = _issue_refresh_token(_USERNAME, row.session_epoch, row.jwt_secret)
+
+        with pytest.raises(jwt.InvalidTokenError):
+            await verify_access_token(token, db_session)
+
+    async def test_epoch_mismatch_raises(self, db_session: AsyncSession) -> None:
+        await _seed_credentials(db_session)
+        row = await CredentialsRepository(db_session).get()
+        assert row is not None
+        token = _issue_access_token(_USERNAME, row.session_epoch + 1, row.jwt_secret)
+
+        with pytest.raises(jwt.InvalidTokenError):
+            await verify_access_token(token, db_session)
+
+    async def test_env_secret_override_honored(self, db_session: AsyncSession) -> None:
+        await _seed_credentials(db_session, jwt_secret="row-secret-not-used")
+        row = await CredentialsRepository(db_session).get()
+        assert row is not None
+        token = _issue_access_token(_USERNAME, row.session_epoch, "test-jwt-secret")
+
+        subject = await verify_access_token(token, db_session)
+
+        assert subject == _USERNAME
