@@ -147,7 +147,7 @@ def _decode_token(token: str, secret: str, expected_type: TokenType) -> dict[str
     return payload
 
 
-async def _resolver(session: AsyncSession) -> SecretResolver:
+def _resolver(session: AsyncSession) -> SecretResolver:
     return SecretResolver(CredentialsRepository(session))
 
 
@@ -190,7 +190,7 @@ async def setup(
         # Concurrent setup: exactly one insert wins (PK/CHECK conflict).
         raise HTTPException(status_code=409, detail="Already configured") from exc
 
-    resolver = await _resolver(session)
+    resolver = _resolver(session)
     effective_secret = await resolver.jwt_secret() or jwt_secret
     access_token = _issue_access_token(row.username, row.session_epoch, effective_secret)
     refresh_token = _issue_refresh_token(row.username, row.session_epoch, effective_secret)
@@ -218,7 +218,7 @@ async def login(
     if not valid:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    resolver = await _resolver(session)
+    resolver = _resolver(session)
     secret = await resolver.jwt_secret() or row.jwt_secret
     access_token = _issue_access_token(row.username, row.session_epoch, secret)
     refresh_token = _issue_refresh_token(row.username, row.session_epoch, secret)
@@ -242,7 +242,7 @@ async def refresh(request: Request, response: Response, session: SessionDep) -> 
     if row is None:
         raise HTTPException(status_code=401, detail="Not configured")
 
-    resolver = await _resolver(session)
+    resolver = _resolver(session)
     secret = await resolver.jwt_secret() or row.jwt_secret
 
     try:
@@ -316,7 +316,7 @@ async def require_auth(
     if row is None:
         raise HTTPException(status_code=401, detail="Not configured")
 
-    resolver = await _resolver(session)
+    resolver = _resolver(session)
     secret = await resolver.jwt_secret() or row.jwt_secret
 
     try:

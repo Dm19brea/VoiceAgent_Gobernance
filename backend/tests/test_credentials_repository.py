@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.repositories.credentials_repository import CredentialsRepository
+from tests.fakes import FAKE_HASH
 
 
 class TestCredentialsRepository:
@@ -18,7 +19,7 @@ class TestCredentialsRepository:
 
         row = await repository.create(
             username="admin",
-            password_hash="hashed",
+            password_hash=FAKE_HASH,
             jwt_secret="jwt-secret",
             vapi_webhook_secret="webhook-secret",
         )
@@ -34,12 +35,14 @@ class TestCredentialsRepository:
         repository = CredentialsRepository(db_session)
         await repository.create(
             username="admin",
-            password_hash="hashed",
+            password_hash=FAKE_HASH,
             jwt_secret="jwt-secret",
             vapi_webhook_secret="webhook-secret",
         )
         await db_session.commit()
 
+        # ``create`` flushes, so the singleton PK/CHECK conflict raises here —
+        # a single throwing invocation inside the ``pytest.raises`` block.
         with pytest.raises(IntegrityError):
             await repository.create(
                 username="someone-else",
@@ -47,13 +50,12 @@ class TestCredentialsRepository:
                 jwt_secret="other-jwt-secret",
                 vapi_webhook_secret="other-webhook-secret",
             )
-            await db_session.commit()
 
     async def test_bump_epoch_increments(self, db_session: AsyncSession) -> None:
         repository = CredentialsRepository(db_session)
         await repository.create(
             username="admin",
-            password_hash="hashed",
+            password_hash=FAKE_HASH,
             jwt_secret="jwt-secret",
             vapi_webhook_secret="webhook-secret",
         )
