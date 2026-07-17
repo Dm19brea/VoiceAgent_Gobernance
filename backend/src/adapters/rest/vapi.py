@@ -19,14 +19,15 @@ from src.application.use_cases.ingest_event import IngestEvent
 from src.application.use_cases.record_system_observation import RecordSystemObservation
 from src.domain.enums import EventType, Source
 from src.domain.event import Event
+from src.domain.secrets import SecretResolver
 from src.infrastructure.celery.tasks import build_session_evidences
-from src.infrastructure.config import settings
 from src.infrastructure.db.models import RawEvent
 from src.infrastructure.db.session import async_session_maker, get_session
 from src.infrastructure.redis.active_sessions import (
     get_active_session_store,
     update_active_state,
 )
+from src.infrastructure.repositories.credentials_repository import CredentialsRepository
 from src.infrastructure.repositories.governance_repository import SqlAlchemyGovernanceRepository
 
 router = APIRouter()
@@ -73,7 +74,7 @@ async def vapi_webhook(
     exactly as before this change. Requests without a matching configured
     secret are rejected before lookup or persistence.
     """
-    configured_secret = settings.vapi_webhook_secret
+    configured_secret = await SecretResolver(CredentialsRepository(session)).webhook_secret()
     if (
         not configured_secret
         or vapi_secret is None

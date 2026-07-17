@@ -24,6 +24,7 @@ from src.infrastructure.config import settings
 from src.infrastructure.db.base import Base
 from src.infrastructure.db.models import (
     AgentModel,
+    AppCredentials,
     EvaluationReportModel,
     EventModel,
     EvidenceModel,
@@ -93,6 +94,7 @@ async def _clean(conn: AsyncConnection) -> None:
     await conn.execute(delete(SessionModel))
     await conn.execute(delete(AgentModel))
     await conn.execute(delete(RawEvent))
+    await conn.execute(delete(AppCredentials))
 
 
 @pytest_asyncio.fixture

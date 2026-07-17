@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint, func, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -103,6 +103,31 @@ class EvidenceModel(Base):
     dimension: Mapped[str] = mapped_column(nullable=False)
     source_events: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AppCredentials(Base):
+    """Singleton dashboard credentials + app-owned secrets (first-run setup).
+
+    Exactly one row may exist, enforced by ``ck_app_credentials_singleton``
+    (``id = 1``). ``session_epoch`` is bumped on logout to globally revoke all
+    previously issued access/refresh tokens without a per-jti blocklist.
+    """
+
+    __tablename__ = "app_credentials"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_app_credentials_singleton"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    username: Mapped[str] = mapped_column(nullable=False)
+    password_hash: Mapped[str] = mapped_column(nullable=False)
+    jwt_secret: Mapped[str] = mapped_column(nullable=False)
+    vapi_webhook_secret: Mapped[str] = mapped_column(nullable=False)
+    session_epoch: Mapped[int] = mapped_column(default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 
 class EvaluationReportModel(Base):
