@@ -9,6 +9,7 @@ from src.infrastructure.config import settings
 from src.infrastructure.db.models import RawEvent
 from src.infrastructure.repositories.credentials_repository import CredentialsRepository
 from tests.conftest import insert_governed_agent
+from tests.fakes import FAKE_HASH
 
 # Simulated Vapi server-message webhook: everything is wrapped in "message"
 # with a discriminating "type". A status-update in-progress marks a started call.
@@ -73,7 +74,7 @@ async def test_vapi_webhook_accepts_db_provisioned_secret_when_no_env_override(
     repository = CredentialsRepository(db_session)
     await repository.create(
         username="admin",
-        password_hash="hashed",
+        password_hash=FAKE_HASH,
         jwt_secret="jwt-secret",
         vapi_webhook_secret="db-provisioned-secret",
     )
@@ -97,7 +98,7 @@ async def test_vapi_webhook_rejects_mismatched_db_secret_without_persistence(
     repository = CredentialsRepository(db_session)
     await repository.create(
         username="admin",
-        password_hash="hashed",
+        password_hash=FAKE_HASH,
         jwt_secret="jwt-secret",
         vapi_webhook_secret="db-provisioned-secret",
     )

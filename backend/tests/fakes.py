@@ -10,6 +10,12 @@ from src.domain.event import Event
 from src.domain.evidence import Evidence
 from src.domain.session import Session
 
+# Fictitious values used only to seed auth fixtures in tests — not real
+# credentials. Kept here under neutral names so there is a single source of
+# truth for the placeholders across the auth test suites.
+FAKE_LOGIN = "Str0ng!Passw0rd"
+FAKE_HASH = "hashed"
+
 
 class InMemoryGovernanceRepository:
     """In-memory double implementing the GovernanceRepository port for tests."""

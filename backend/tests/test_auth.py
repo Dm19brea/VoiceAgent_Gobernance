@@ -16,9 +16,10 @@ from src.adapters.rest.auth import (
 from src.infrastructure.config import settings
 from src.infrastructure.repositories.credentials_repository import CredentialsRepository
 from src.main import app
+from tests.fakes import FAKE_LOGIN
 
 # Fictitious login values used only by these tests — not real credentials.
-_VALID_PASSWORD = "Str0ng!Passw0rd"
+_VALID_PASSWORD = FAKE_LOGIN
 _USERNAME = "admin"
 
 
@@ -330,5 +331,5 @@ class TestTokenEpoch:
         assert decoded["epoch"] == 0
         assert decoded["type"] == "access"
 
-    async def test_access_token_expiry_matches_fifteen_minutes(self) -> None:
+    def test_access_token_expiry_matches_fifteen_minutes(self) -> None:
         assert timedelta(minutes=15) == ACCESS_TOKEN_TTL
