@@ -6,14 +6,16 @@ client disconnects.
 """
 
 import asyncio
-from typing import Any
+from typing import Annotated, Any
 
 import jwt
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, WebSocketException
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.adapters.rest.auth import verify_token
+from src.adapters.rest.auth import verify_access_token
 from src.application.ports.active_sessions import ActiveSessionSnapshot
+from src.infrastructure.db.session import get_session
 from src.infrastructure.redis.active_sessions import get_active_session_store
 
 router = APIRouter()
@@ -21,20 +23,33 @@ router = APIRouter()
 ACTIVE_SESSIONS_INTERVAL = 2.0
 
 
-@router.websocket("/ws/active-sessions")
-async def active_sessions_ws(websocket: WebSocket, token: str | None = None) -> None:
-    """Stream active sessions (S2: browsers can't set WS headers, so the
-    token travels as ``?token=``; it is verified BEFORE ``accept()`` and the
-    connection is closed with 1008 on missing/invalid token)."""
-    if token is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-    try:
-        verify_token(token)
-    except jwt.PyJWTError:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
+async def authenticate_ws(
+    websocket: WebSocket,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    token: str | None = None,
+) -> str:
+    """WS auth dependency (S2): verifies the DB-backed access token BEFORE
+    ``accept()``. Browsers can't set WS headers, so the token travels as
+    ``?token=``. Raises ``WebSocketException(1008)`` — which Starlette
+    closes pre-accept — on a missing, invalid, wrong-type, or revoked token.
 
+    Overridden with a stub in tests exercising the streaming/serialization
+    behavior without a DB (mirrors ``require_auth``'s ``_bypass_dashboard_auth``
+    test seam).
+    """
+    if token is None:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+    try:
+        return await verify_access_token(token, session)
+    except jwt.PyJWTError as exc:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION) from exc
+
+
+@router.websocket("/ws/active-sessions")
+async def active_sessions_ws(
+    websocket: WebSocket, _subject: Annotated[str, Depends(authenticate_ws)]
+) -> None:
+    """Stream active sessions to an authenticated dashboard client."""
     await websocket.accept()
     store = get_active_session_store()
     try:

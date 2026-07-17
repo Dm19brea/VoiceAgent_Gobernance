@@ -275,27 +275,28 @@ async def logout(request: Request, response: Response, session: SessionDep) -> d
     return {"status": "logged_out"}
 
 
-def issue_token(username: str) -> str:
-    """Legacy sync issuer used only by ``ws.py``/its tests (env secret).
+async def verify_access_token(token: str, session: AsyncSession) -> str:
+    """Verify a DB-backed access token shared by REST and WebSocket auth.
 
-    Mirrors the pre-rewrite 12h token used to authenticate the WebSocket
-    query-string token, independent from the DB-aware access/refresh pair.
+    Resolves the signing secret (env override else the credentials row),
+    decodes the token as an ``access`` token, and checks its embedded
+    ``epoch`` against the current ``session_epoch``. Raises
+    ``jwt.InvalidTokenError`` on any failure: no credentials row, decode
+    error, wrong token type, or revoked (epoch-mismatched) token.
     """
-    now = datetime.now(UTC)
-    payload = {"sub": username, "iat": now, "exp": now + timedelta(hours=12)}
-    return jwt.encode(payload, settings.jwt_secret, algorithm=JWT_ALGORITHM)
+    repository = CredentialsRepository(session)
+    row = await repository.get()
+    if row is None:
+        raise jwt.InvalidTokenError("Not configured")
 
+    resolver = _resolver(session)
+    secret = await resolver.jwt_secret() or row.jwt_secret
 
-def verify_token(token: str) -> str:
-    """Legacy sync verifier used only by ``ws.py`` (env secret, no epoch check).
+    payload = _decode_token(token, secret, "access")
 
-    ``ws_router`` authentication staying epoch-aware is an explicit non-goal
-    for this change (design open question); it is unguarded/follow-up work.
-    This preserves the previous behavior unchanged and only works when
-    ``JWT_SECRET`` is set via env (the DB-first secret is not reachable from
-    a WebSocket route without a DB session dependency).
-    """
-    payload = jwt.decode(token, settings.jwt_secret, algorithms=[JWT_ALGORITHM])
+    if payload.get("epoch") != row.session_epoch:
+        raise jwt.InvalidTokenError("Session revoked")
+
     subject: str = payload["sub"]
     return subject
 
@@ -311,21 +312,7 @@ async def require_auth(
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
     token = authorization.removeprefix("Bearer ")
 
-    repository = CredentialsRepository(session)
-    row = await repository.get()
-    if row is None:
-        raise HTTPException(status_code=401, detail="Not configured")
-
-    resolver = _resolver(session)
-    secret = await resolver.jwt_secret() or row.jwt_secret
-
     try:
-        payload = _decode_token(token, secret, "access")
-    except jwt.PyJWTError as exc:
+        return await verify_access_token(token, session)
+    except jwt.InvalidTokenError as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
-
-    if payload.get("epoch") != row.session_epoch:
-        raise HTTPException(status_code=401, detail="Session revoked")
-
-    subject: str = payload["sub"]
-    return subject
