@@ -30,7 +30,9 @@ async def test_vapi_webhook_persists_raw_event(
     await insert_governed_agent(db_session, "asst-raw")
 
     response = await client.post(
-        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "expected-secret"}
+        "/webhooks/vapi",
+        json=VAPI_STATUS_UPDATE,
+        headers={"Authorization": "Bearer expected-secret"},
     )
 
     # Vapi ignores any non-200 response.
@@ -53,13 +55,31 @@ async def test_vapi_webhook_rejects_missing_secret_without_persistence(
     assert await db_session.scalar(select(RawEvent)) is None
 
 
+async def test_vapi_webhook_rejects_governed_agent_without_credential_header(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: MonkeyPatch
+) -> None:
+    """A registered agent whose Vapi credential is NOT assigned sends no
+    ``Authorization`` header: its calls must be rejected before any lookup and
+    never landed, even though the agent exists in the platform.
+    """
+    monkeypatch.setattr(settings, "vapi_webhook_secret", "expected-secret")
+    await insert_governed_agent(db_session, "asst-raw")
+
+    response = await client.post("/webhooks/vapi", json=VAPI_STATUS_UPDATE)
+
+    assert response.status_code == 401
+    assert await db_session.scalar(select(RawEvent)) is None
+
+
 async def test_vapi_webhook_rejects_wrong_secret_without_persistence(
     client: AsyncClient, db_session: AsyncSession, monkeypatch: MonkeyPatch
 ) -> None:
     monkeypatch.setattr(settings, "vapi_webhook_secret", "expected-secret")
 
     response = await client.post(
-        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "wrong-secret"}
+        "/webhooks/vapi",
+        json=VAPI_STATUS_UPDATE,
+        headers={"Authorization": "Bearer wrong-secret"},
     )
 
     assert response.status_code == 401
@@ -84,7 +104,7 @@ async def test_vapi_webhook_accepts_db_provisioned_secret_when_no_env_override(
     response = await client.post(
         "/webhooks/vapi",
         json=VAPI_STATUS_UPDATE,
-        headers={"x-vapi-secret": "db-provisioned-secret"},
+        headers={"Authorization": "Bearer db-provisioned-secret"},
     )
 
     assert response.status_code == 200
@@ -105,7 +125,9 @@ async def test_vapi_webhook_rejects_mismatched_db_secret_without_persistence(
     await db_session.commit()
 
     response = await client.post(
-        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "wrong-secret"}
+        "/webhooks/vapi",
+        json=VAPI_STATUS_UPDATE,
+        headers={"Authorization": "Bearer wrong-secret"},
     )
 
     assert response.status_code == 401
@@ -119,7 +141,7 @@ async def test_vapi_webhook_rejects_when_no_secret_configured_anywhere(
     monkeypatch.setattr(settings, "vapi_webhook_secret", "")
 
     response = await client.post(
-        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"x-vapi-secret": "anything"}
+        "/webhooks/vapi", json=VAPI_STATUS_UPDATE, headers={"Authorization": "Bearer anything"}
     )
 
     assert response.status_code == 401

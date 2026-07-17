@@ -37,7 +37,7 @@ from src.main import app
 from tests.fakes import FakeAssistantDirectory
 
 VAPI_WEBHOOK_SECRET = "test-vapi-webhook-secret"
-VAPI_WEBHOOK_HEADERS = {"x-vapi-secret": VAPI_WEBHOOK_SECRET}
+VAPI_WEBHOOK_HEADERS = {"Authorization": f"Bearer {VAPI_WEBHOOK_SECRET}"}
 
 
 @pytest.fixture(autouse=True)

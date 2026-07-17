@@ -72,7 +72,7 @@ flowchart LR
     TRACE -->|"REST protegido"| UI
 ```
 
-1. La API valida `X-Vapi-Secret` y comprueba que el `assistantId` pertenece a un agente gobernado.
+1. La API valida la credencial `Authorization: Bearer <VAPI_WEBHOOK_SECRET>` y comprueba que el `assistantId` pertenece a un agente gobernado.
 2. El webhook aceptado se guarda como evento original y, si tiene equivalencia conocida, se transforma a la taxonomía canónica del dominio.
 3. La llamada se correlaciona mediante el `call.id` de Vapi y se persiste como una traza ordenada e idempotente.
 4. Redis mantiene el estado efímero de las sesiones activas y el dashboard lo recibe por WebSocket.
@@ -223,7 +223,7 @@ Railway ejecuta cinco servicios: **PostgreSQL, Redis, API, worker y frontend**. 
 
 ### Ingesta y trazabilidad
 
-- Autenticación del webhook mediante el encabezado `X-Vapi-Secret`.
+- Autenticación del webhook mediante la credencial `Authorization: Bearer <VAPI_WEBHOOK_SECRET>`, asignada por asistente en Vapi.
 - Conservación del payload original en PostgreSQL antes de su interpretación.
 - Traducción de eventos Vapi a una taxonomía canónica independiente del proveedor.
 - Correlación de una llamada con una única sesión y secuencias de eventos ordenadas.
@@ -258,7 +258,7 @@ Railway ejecuta cinco servicios: **PostgreSQL, Redis, API, worker y frontend**. 
 | Revocación | `session_epoch` persistido; el cierre de sesión invalida los tokens anteriores |
 | Credenciales | Contraseña con hash bcrypt; secretos generados en el primer setup y persistidos en PostgreSQL |
 | WebSocket | Token de acceso validado contra secreto y epoch actuales antes de aceptar la conexión |
-| Webhook Vapi | Comparación constante de `X-Vapi-Secret` y rechazo antes de persistir |
+| Webhook Vapi | Comparación en tiempo constante de `Authorization: Bearer <secreto>` y rechazo antes de persistir |
 | Datos expuestos | Allowlist de campos para no devolver payloads completos del proveedor al dashboard |
 | Secretos locales | Archivos `.env` ignorados por Git; solo `.env.example` se versiona |
 
