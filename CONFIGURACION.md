@@ -74,22 +74,11 @@ Después abre `backend/.env` y rellena las **dos variables vacías de la plantil
 - `VAPI_API_KEY`: dashboard de Vapi → **Settings → API Keys**.
 - `OPENROUTER_API_KEY`: <https://openrouter.ai/keys> (la usa el juez LLM del scoring).
 
-Añade además estas cuatro variables (no vienen en la plantilla porque protegen el acceso al dashboard y la recepción de webhooks):
-
-- `JWT_SECRET`: cadena aleatoria larga (32+ caracteres) — firma los tokens de sesión del dashboard. Genera una con `openssl rand -hex 32`.
-- `DASHBOARD_USERNAME`: el usuario con el que iniciarás sesión en el dashboard (p. ej. `admin`).
-- `DASHBOARD_PASSWORD_HASH`: hash bcrypt de tu contraseña de dashboard (nunca la contraseña en texto plano). Genera el hash así:
-
-  ```sh
-  cd backend
-  uv run python -c "import bcrypt; print(bcrypt.hashpw(b'TU_CONTRASENA', bcrypt.gensalt()).decode())"
-  ```
-
-  Copia la salida completa (empieza por `$2b$...`) como valor de `DASHBOARD_PASSWORD_HASH`.
-
-- `VAPI_WEBHOOK_SECRET`: secreto compartido aleatorio para validar los webhooks entrantes. Configura exactamente el mismo valor en el encabezado `x-vapi-secret` de la URL del servidor en el panel de Vapi.
+Esas dos son claves de cuentas externas: solo tú las tienes, así que van a mano. **No hace falta configurar nada más de seguridad**: el usuario y la contraseña del dashboard, el secreto de firma de sesión (`JWT_SECRET`) y el secreto de webhook (`VAPI_WEBHOOK_SECRET`) **se generan y guardan automáticamente la primera vez que entras al dashboard** (ver Paso 7). Se persisten en la base de datos, no en `backend/.env`.
 
 El resto de valores (Postgres, Redis, CORS, URLs base) ya vienen configurados para el `docker-compose.yml` de este repo — no los toques.
+
+> Opcional: si quieres fijar tú el `JWT_SECRET` en lugar de dejar que se autogenere (por ejemplo para conservar sesiones válidas al recrear la base de datos), defínelo en `backend/.env` con `openssl rand -hex 32`. Si no lo defines, se genera uno estable en el primer arranque.
 
 > `backend/.env` está en `.gitignore`: tus claves reales nunca se suben a git.
 
@@ -140,7 +129,14 @@ npm run dev
 
 > Solo si necesitas apuntar a otra API o cambiar el nivel de log, crea `frontend/.env.local` con `NEXT_PUBLIC_API_URL` y/o `NEXT_PUBLIC_LOG_LEVEL` (valores: `trace | debug | info | warn | error`). El WebSocket se deriva automáticamente de la URL de la API.
 
-Verificación: abre <http://localhost:3000> — el dashboard te redirige a `/login`. Entra con `DASHBOARD_USERNAME` y la contraseña en texto plano cuyo hash configuraste en `DASHBOARD_PASSWORD_HASH`. Tras iniciar sesión, el resto de páginas debe cargar sin errores en la consola del navegador.
+Verificación: abre <http://localhost:3000>.
+
+**Primer arranque (aún no hay credenciales).** El dashboard te redirige a `/setup` y te pide crear la cuenta de operador:
+
+1. Elige un usuario y una contraseña. La contraseña debe cumplir: mínimo 12 caracteres, y al menos una mayúscula, una minúscula, un número y un carácter especial (la pantalla te lo valida en vivo).
+2. Al confirmar, el backend genera y guarda automáticamente el `JWT_SECRET` de firma de sesión y el `VAPI_WEBHOOK_SECRET`, y te muestra **una sola vez** el valor del `VAPI_WEBHOOK_SECRET`. **Cópialo ahora**: lo necesitarás en el Paso 8 para el encabezado `x-vapi-secret` de Vapi. Si lo pierdes, tendrás que reprovisionarlo (borrar la fila de credenciales de la base de datos y repetir el setup).
+
+**Arranques siguientes (ya configurado).** El dashboard te redirige a `/login`; entra con el usuario y la contraseña que creaste en el setup. Tras iniciar sesión, el resto de páginas debe cargar sin errores en la consola del navegador.
 
 ### Paso 8 — Exponer la API a Vapi (túnel)
 
@@ -155,6 +151,8 @@ Copia la URL `Forwarding` que muestra (formato `https://xxxx.ngrok-free.app`). E
 ```
 https://xxxx.ngrok-free.app/webhooks/vapi
 ```
+
+En esa misma pantalla de Vapi, añade el encabezado de servidor **`x-vapi-secret`** con el valor de `VAPI_WEBHOOK_SECRET` que el dashboard te mostró en el Paso 7. La API rechaza cualquier webhook cuyo `x-vapi-secret` no coincida.
 
 > La URL de ngrok gratuito cambia en cada arranque: si reinicias ngrok, actualiza el Server URL en Vapi.
 
@@ -204,13 +202,11 @@ En **Variables**, añade:
 DATABASE_URL=${{<SERVICIO_POSTGRES>.DATABASE_URL}}
 REDIS_URL=${{<SERVICIO_REDIS>.REDIS_URL}}
 VAPI_API_KEY=<TU_API_KEY_DE_VAPI>
-JWT_SECRET=<CADENA_ALEATORIA_LARGA>
-DASHBOARD_USERNAME=<TU_USUARIO_DE_DASHBOARD>
-DASHBOARD_PASSWORD_HASH=<HASH_BCRYPT_DE_TU_CONTRASENA>
-VAPI_WEBHOOK_SECRET=<SECRETO_COMPARTIDO_ALEATORIO>
 ```
 
-`JWT_SECRET`, `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD_HASH` y `VAPI_WEBHOOK_SECRET` se generan y gestionan igual que en el entorno local (ver Parte 1, Paso 3). En Vapi, configura `VAPI_WEBHOOK_SECRET` como el valor del encabezado `x-vapi-secret` de la URL del servidor.
+No configures aquí el usuario/contraseña del dashboard ni los secretos de sesión y webhook: igual que en local, el usuario y la contraseña, el `JWT_SECRET` y el `VAPI_WEBHOOK_SECRET` **se crean y guardan automáticamente la primera vez que entras al dashboard** (Parte 1, Paso 7), y quedan persistidos en Postgres. Cuando hagas ese primer setup, copia el `VAPI_WEBHOOK_SECRET` que se muestra una vez y ponlo en Vapi como encabezado `x-vapi-secret` del Server URL (Paso 5).
+
+> Opcional: define `JWT_SECRET=<CADENA_ALEATORIA_LARGA>` (`openssl rand -hex 32`) solo si prefieres fijarlo tú en vez de dejar que se autogenere.
 
 Después, ve a **Settings → Networking → Generate Domain** y guarda la URL como `<BACKEND_URL>`.
 
@@ -266,13 +262,15 @@ Vuelve al servicio backend y añade esta variable:
 CORS_ORIGINS=<FRONTEND_URL>
 ```
 
-Redespliega el backend. Después, configura en Vapi la **Server URL** del asistente:
+Redespliega el backend. Abre `<FRONTEND_URL>`: en el primer acceso el dashboard te lleva a `/setup` para crear la cuenta de operador y te muestra una vez el `VAPI_WEBHOOK_SECRET` (Parte 1, Paso 7). Cópialo.
+
+Después, configura en Vapi la **Server URL** del asistente:
 
 ```text
 <BACKEND_URL>/webhooks/vapi
 ```
 
-Por último, abre `<FRONTEND_URL>` y registra el asistente como agente gobernado, igual que en el paso 9 del entorno local.
+y añade el encabezado **`x-vapi-secret`** con ese `VAPI_WEBHOOK_SECRET`. Por último, en `<FRONTEND_URL>`, registra el asistente como agente gobernado, igual que en el paso 9 del entorno local.
 
 > No pegues literalmente `<SERVICIO_POSTGRES>` ni `<SERVICIO_REDIS>`. En **Variables → Add Reference**, selecciona la base de datos correspondiente y Railway insertará su nombre real automáticamente.
 
@@ -296,10 +294,8 @@ Por último, abre `<FRONTEND_URL>` y registra el asistente como agente gobernado
 | `VAPI_API_KEY` | API, worker | secreto | secreto |
 | `VAPI_BASE_URL` | API, worker | `https://api.vapi.ai` (defecto) | igual |
 | `VAPI_TIMEOUT_SECONDS` | API, worker | `10.0` (defecto) | igual |
-| `JWT_SECRET` | API | secreto (32+ caracteres) | secreto (32+ caracteres) |
-| `DASHBOARD_USERNAME` | API | tu usuario de dashboard | tu usuario de dashboard |
-| `DASHBOARD_PASSWORD_HASH` | API | hash bcrypt de tu contraseña | hash bcrypt de tu contraseña |
-| `VAPI_WEBHOOK_SECRET` | API | secreto compartido con Vapi | secreto compartido con Vapi |
+| `JWT_SECRET` | API | opcional (override); autogenerado en DB si no se define | opcional (override); autogenerado en DB si no se define |
+| `VAPI_WEBHOOK_SECRET` | API | opcional (override); autogenerado en el setup y mostrado una vez | opcional (override); autogenerado en el setup y mostrado una vez |
 | `OPENROUTER_API_KEY` | API, worker | secreto | secreto |
 | `OPENROUTER_BASE_URL` | API, worker | `https://openrouter.ai/api/v1` (defecto) | igual |
 | `OPENROUTER_TIMEOUT_SECONDS` | API, worker | `10.0` (defecto) | igual |
@@ -310,7 +306,8 @@ Por último, abre `<FRONTEND_URL>` y registra el asistente como agente gobernado
 Notas:
 
 - Railway entrega `DATABASE_URL` como `postgresql://...`; el backend la normaliza a `postgresql+asyncpg://` automáticamente (`Settings.async_database_url`).
-- Los secretos van **solo** en `backend/.env` (está en `.gitignore`) o en el dashboard de Railway. Nunca en archivos commiteados.
+- El usuario y la contraseña del dashboard, el `JWT_SECRET` y el `VAPI_WEBHOOK_SECRET` **no** se configuran por entorno: se crean en el primer login (`/setup`) y se guardan en la tabla `app_credentials` de Postgres. La contraseña nunca se almacena en claro (hash bcrypt).
+- Las claves de cuentas externas (`VAPI_API_KEY`, `OPENROUTER_API_KEY`) sí van a mano en `backend/.env` (en `.gitignore`) o en el dashboard de Railway. Nunca en archivos commiteados.
 
 ## Problemas comunes
 
@@ -322,3 +319,6 @@ Notas:
 | Log: `webhook discarded for ungoverned assistant` | Asistente no registrado como agente gobernado | Registra el `assistantId` exacto en el dashboard |
 | Llamadas sin evidencias al cerrar | Worker Celery no está corriendo | Arranca el worker (paso 6) |
 | Vapi no envía webhooks en local | ngrok caído o Server URL desactualizada | Reinicia ngrok y actualiza el Server URL en Vapi |
+| Vapi recibe 401/403 al enviar webhooks | El encabezado `x-vapi-secret` no coincide con el `VAPI_WEBHOOK_SECRET` generado en el setup | Copia el valor exacto del setup al encabezado `x-vapi-secret` en Vapi |
+| Perdiste el `VAPI_WEBHOOK_SECRET` (solo se muestra una vez) | No se puede volver a mostrar | Borra la fila de la tabla `app_credentials` en Postgres y repite el `/setup` para reprovisionar credenciales y secretos |
+| El dashboard te lleva a `/setup` cuando ya lo configuraste | La tabla `app_credentials` está vacía (base de datos recreada) | Vuelve a crear la cuenta en `/setup`; para conservar sesiones tras recrear la DB, fija `JWT_SECRET` en el entorno |
